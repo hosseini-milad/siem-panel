@@ -16,10 +16,12 @@ function network(index) {
   };
 }
 
-function risk(probability) {
-  if (probability == null) return null;
-  const severity = probability >= .85 ? 'critical' : probability >= .65 ? 'high' : probability >= .35 ? 'medium' : 'low';
-  return { attack_probability: probability, severity };
+function risk(score) {
+  if (score == null) return null;
+  if (score === 0) return { score, severity: 'benign' };
+  if (score === 1) return { score, severity: 'attack' };
+  const severity = score >= .85 ? 'critical' : score >= .65 ? 'high' : score >= .35 ? 'medium' : 'low';
+  return { score, severity };
 }
 
 export function seedFlows() {
@@ -31,7 +33,7 @@ export function seedFlows() {
     const duration = 1000 + index * 313;
     const packets = 2 + index % 64;
     const forwardBytes = packets * (64 + index % 512);
-    const label = index % 7 === 0 ? 'Attack' : 'Benign';
+    const label = index % 10 === 0 ? null : index % 7 === 0 ? 1 : index % 5 === 0 ? 0 : ((index * 19 + 23) % 101) / 100;
     return {
       id: original_id, timestamp, source: 'network-flow', ...fields,
       level: null, message: 'جریان ترافیک شبکه',
@@ -40,8 +42,8 @@ export function seedFlows() {
         Protocol: fields.protocol, 'Flow Duration': duration, 'Tot Fwd Pkts': packets,
         'TotLen Fwd Pkts': forwardBytes, Label: label },
       normalized: { _id: original_id, original_id, 'Flow Duration': (duration - 1000) / (479 * 313),
-        'Tot Fwd Pkts': (packets - 2) / 63, ['Protocol_' + fields.protocol]: 1, Label: label === 'Attack' ? 1 : 0 },
-      risk: risk(index % 10 === 0 ? null : ((index * 19 + 23) % 101) / 100),
+        'Tot Fwd Pkts': (packets - 2) / 63, ['Protocol_' + fields.protocol]: 1, Label: label },
+      risk: risk(label),
     };
   });
 }

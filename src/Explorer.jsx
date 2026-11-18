@@ -6,7 +6,7 @@ import { Badge, Card, logLevels, number, Pagination, Resource, Table, useResourc
 
 const pageSize = 15;
 const timestamp = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'short', timeStyle: 'medium' });
-const percent = new Intl.NumberFormat('fa-IR', { style: 'percent', maximumFractionDigits: 1 });
+const percent = new Intl.NumberFormat('fa-IR', { style: 'percent', maximumFractionDigits: 4 });
 const dateRange = value => {
   if (!value) return {};
   const start = new Date(value + 'T00:00:00');
@@ -17,7 +17,9 @@ const dateRange = value => {
 
 function Risk({ value }) {
   if (!value) return <span className="muted">ارزیابی نشده</span>;
-  return <span className="risk"><Badge value={value.severity} /> {percent.format(value.attack_probability)}</span>;
+  return <span className="risk"><Badge value={value.severity} tone={value.severity === 'attack' ? 'red' : value.severity === 'benign' ? 'green' : undefined}>
+    {value.severity === 'attack' ? 'حمله' : value.severity === 'benign' ? 'بی‌خطر' : undefined}
+  </Badge> {percent.format(value.score)}</span>;
 }
 
 const columns = [
@@ -110,9 +112,9 @@ export default function Explorer() {
         <label>پورت مبدأ<input type="number" name="source_port" min="0" max="65535" dir="ltr" /></label>
         <label>پورت مقصد<input type="number" name="destination_port" min="0" max="65535" dir="ltr" /></label>
         <label>پروتکل<select name="protocol"><option value="">همه</option><option>TCP</option><option>UDP</option><option>ICMP</option></select></label>
-        <label>مخاطره<select name="risk"><option value="">همه</option><option value="critical">بحرانی</option>
+        <label>مخاطره<select name="risk"><option value="">همه</option><option value="attack">حمله</option><option value="critical">بحرانی</option>
           <option value="high">زیاد</option><option value="medium">متوسط</option><option value="low">کم</option>
-          <option value="unscored">ارزیابی نشده</option></select></label>
+          <option value="benign">بی‌خطر</option><option value="unscored">ارزیابی نشده</option></select></label>
         {kind === 'logs' && <label>سطح لاگ<select name="level"><option value="">همه</option>
           {logLevels.map(level => <option key={level}>{level}</option>)}</select></label>}
       </fieldset>}

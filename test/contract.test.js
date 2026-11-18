@@ -86,6 +86,7 @@ test('explorer filters by date and exact network fields before pagination', asyn
   assert.equal(match.source_ip, row.source_ip);
   assert.equal(match.destination_port, row.destination_port);
   assert.equal(match.id, match.normalized.original_id);
+  assert.equal(match.risk.score, match.raw.Label);
   assert.ok(match.timestamp >= start && match.timestamp < end);
   assert.equal((await api('/explorer/records', { query: { ...query, offset: first.total } })).items.length, 0);
   const logs = await api('/explorer/records', { query: { kind: 'logs', risk: 'unscored' } });
