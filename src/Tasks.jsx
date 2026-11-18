@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, Check, Circle, Hash, LayoutGrid, MessageSquare, Pencil, Plus, RefreshCw, Star, UserRound, UsersRound, X } from 'lucide-react';
+import { CalendarDays, Check, Circle, Hash, MessageSquare, Pencil, Plus, RefreshCw, Star, UserRound, UsersRound, X } from 'lucide-react';
 import { liveApi } from './api.js';
 import { Badge, Card, number, Pagination, Resource, Table, useResource } from './ui.jsx';
 
@@ -45,13 +45,47 @@ function AssignmentFields({ candidates, task }) {
   </>;
 }
 
-function tagValues(value) {
-  return value.split(/[,،]/).map(tag => tag.trim()).filter(Boolean);
+function readTags(fields) {
+  const tags = fields.getAll('tags');
+  const draft = fields.get('tag-draft')?.trim();
+  if (draft && !tags.some(tag => tag.toLowerCase() === draft.toLowerCase())) tags.push(draft);
+  return tags;
 }
 
-function TagField({ tags = [] }) {
-  return <label>تگ‌ها<input name="tags" placeholder="مثلاً طراحی، پیگیری" defaultValue={tags.join('، ')} maxLength={220} />
-    <small>حداکثر ۸ تگ با جداکنندهٔ ویرگول</small></label>;
+function TagField({ tags = [], suggestions = [] }) {
+  const [selected, setSelected] = useState(tags);
+  const [draft, setDraft] = useState('');
+  const found = new Set(selected.map(tag => tag.toLowerCase()));
+  const available = [...new Map(suggestions.map(tag => [tag.toLowerCase(), tag])).values()]
+    .filter(tag => !found.has(tag.toLowerCase()) && tag.toLowerCase().includes(draft.trim().toLowerCase()));
+
+  function add(value) {
+    const tag = value.trim();
+    if (tag && selected.length < 8 && !found.has(tag.toLowerCase())) setSelected([...selected, tag]);
+    setDraft('');
+  }
+
+  return <fieldset className="task-tag-editor"><legend>تگ‌ها</legend>
+    <div className="task-tags">
+      {selected.map(tag => <span className="task-tag-choice" key={tag}>
+        <input type="hidden" name="tags" value={tag} />
+        <bdi>{tag}</bdi>
+        <button type="button" aria-label={`حذف تگ ${tag}`}
+          onClick={() => setSelected(selected.filter(item => item !== tag))}><X size={12} /></button>
+      </span>)}
+    </div>
+    <input name="tag-draft" aria-label="تگ جدید" placeholder="نام تگ، سپس Enter" maxLength={24}
+      disabled={selected.length >= 8} value={draft} onChange={event => setDraft(event.target.value)}
+      onKeyDown={event => {
+        if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+        event.preventDefault();
+        add(draft);
+      }} />
+    {selected.length < 8 && available.length > 0 && <div className="task-tag-suggestions" aria-label="تگ‌های موجود">
+      {available.map(tag => <button type="button" className="button" key={tag} onClick={() => add(tag)}><Plus size={12} />{tag}</button>)}
+    </div>}
+    <small>حداکثر ۸ تگ</small>
+  </fieldset>;
 }
 
 function Tags({ tags }) {
@@ -59,9 +93,10 @@ function Tags({ tags }) {
   return <div className="task-tags">{tags.map(tag => <bdi key={tag}>{tag}</bdi>)}</div>;
 }
 
-function TaskCard({ task, onOpen }) {
+function TaskCard({ task, onOpen, onDragStart, onDragEnd, draggable }) {
   const stars = Object.keys(priorities).indexOf(task.priority) + 1;
-  return <button className="kanban-card task-record-card" type="button" onClick={onOpen}>
+  return <button className="kanban-card task-record-card" type="button" onClick={onOpen} draggable={draggable}
+    onDragStart={onDragStart} onDragEnd={onDragEnd}>
     <strong>{task.title}</strong>
     <div className="task-record-meta">
       <span><Hash size={15} />شمارهٔ تسک <bdi dir="ltr">{task.id.slice(0, 8)}</bdi></span>
@@ -83,7 +118,7 @@ function TaskCard({ task, onOpen }) {
   </button>;
 }
 
-function NewTask({ candidates, onSave }) {
+function NewTask({ candidates, suggestions, onSave }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function submit(event) {
@@ -99,7 +134,7 @@ function NewTask({ candidates, onSave }) {
     try {
       await liveApi('/tasks', { method: 'POST', body: {
         title: fields.get('title').trim(), description: fields.get('description').trim(),
-        priority: fields.get('priority'), assignees, tags: tagValues(fields.get('tags')),
+        priority: fields.get('priority'), assignees, tags: readTags(fields),
       } });
       onSave();
     } catch (failure) {
@@ -110,15 +145,15 @@ function NewTask({ candidates, onSave }) {
   }
   return <form className="account-form user-editor" onSubmit={submit}>
     <label>عنوان<input name="title" required maxLength={120} /></label>
-    <label>شرح<textarea name="description" rows={3} maxLength={4000} /></label>
-    <TagField />
+    <label>شرح<textarea className="task-description-input" name="description" rows={3} maxLength={4000} /></label>
+    <TagField suggestions={suggestions} />
     <AssignmentFields candidates={candidates} />
     {error && <p className="notice error" role="alert">{error}</p>}
     <div><button className="button primary" disabled={busy || !candidates.length}><Plus size={16} />ثبت تسک</button></div>
   </form>;
 }
 
-function TaskDetails({ task, columns, candidates, onUpdate }) {
+function TaskDetails({ task, columns, candidates, suggestions, onUpdate }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -143,7 +178,7 @@ function TaskDetails({ task, columns, candidates, onUpdate }) {
       setError('بین ۱ تا ۲۰ نفر انتخاب کنید.');
       return;
     }
-    send('', 'PATCH', { priority: fields.get('priority'), assignees, tags: tagValues(fields.get('tags')) });
+    send('', 'PATCH', { priority: fields.get('priority'), assignees, tags: readTags(fields) });
   }
 
   return <div className="task-detail">
@@ -169,7 +204,7 @@ function TaskDetails({ task, columns, candidates, onUpdate }) {
       </div>
     </form>}
     {task.can_assign && <form className="account-form" key={'assignment-' + task.revision} onSubmit={assign}>
-      <TagField tags={task.tags} />
+      <TagField tags={task.tags} suggestions={suggestions} />
       <AssignmentFields candidates={candidates} task={task} />
       <div><button className="button" disabled={busy}>به‌روزرسانی ارجاع و اولویت</button></div>
     </form>}
@@ -193,19 +228,24 @@ function TaskDetails({ task, columns, candidates, onUpdate }) {
   </div>;
 }
 
-function OpenTask({ id, columns, candidates, onUpdate }) {
+function OpenTask({ id, columns, candidates, suggestions, onUpdate }) {
   const details = useResource('/tasks/' + id, {}, 0, liveApi);
   const [updated, setUpdated] = useState(null);
-  return <Resource result={details}>{task => <TaskDetails task={updated ?? task} columns={columns} candidates={candidates}
+  return <Resource result={details}>{task => <TaskDetails task={updated ?? task} columns={columns} candidates={candidates} suggestions={suggestions}
     onUpdate={item => { setUpdated(item); onUpdate(); }} />}</Resource>;
 }
 
-function Board({ board }) {
+export default function Tasks() {
   const [offset, setOffset] = useState(0);
   const [revision, setRevision] = useState(0);
   const [selected, setSelected] = useState(null);
-  const page = useResource('/tasks', { board, offset }, revision, liveApi);
+  const page = useResource('/tasks', { offset }, revision, liveApi);
   const [openPage, setOpenPage] = useState(null);
+  const dragging = useRef(null);
+  const [dragSource, setDragSource] = useState(null);
+  const [target, setTarget] = useState(null);
+  const [moving, setMoving] = useState(false);
+  const [moveError, setMoveError] = useState('');
   const refresh = () => setRevision(value => value + 1);
   const close = () => setSelected(null);
   useEffect(() => {
@@ -221,7 +261,34 @@ function Board({ board }) {
     return () => window.clearTimeout(timer);
   }, [page.data]);
 
-  return <>
+  function endDrag() {
+    dragging.current = null;
+    setDragSource(null);
+    setTarget(null);
+  }
+
+  async function drop(event, column) {
+    const task = dragging.current;
+    if (!task || column === task.column_id || !task.move_columns.includes(column)) return;
+    event.preventDefault();
+    endDrag();
+    if (column === 'done' && !window.confirm('تسک خاتمه یابد؟')) return;
+    setMoveError('');
+    setMoving(true);
+    try {
+      await liveApi('/tasks/' + task.id, {
+        method: 'PATCH', body: { column_id: column, revision: task.revision },
+      });
+    } catch (error) {
+      setMoveError(error.message);
+    } finally {
+      setMoving(false);
+      refresh();
+    }
+  }
+
+  return <div className="task-page">
+    {moveError && <p className="notice error" role="alert">{moveError}</p>}
     <Resource result={page}>{data => <>
       <div className="task-toolbar">
         {data.can_create && <button className="button primary" onClick={() => {
@@ -233,10 +300,30 @@ function Board({ board }) {
       <div className="kanban" role="region" aria-label="تابلوی کانبان" tabIndex={0}>
         {data.columns.map(column => {
           const tasks = data.items.filter(task => task.column_id === column.id);
-          return <section className="kanban-column" key={column.id} aria-label={column.title}>
+          return <section className={`kanban-column ${target === column.id ? 'is-drop-target' : ''}`}
+            key={column.id} aria-label={column.title}
+            onDragOver={event => {
+              if (dragging.current?.move_columns.includes(column.id) && dragging.current.column_id !== column.id) {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                setTarget(column.id);
+              }
+            }}
+            onDragLeave={event => {
+              if (!event.currentTarget.contains(event.relatedTarget)) setTarget(current => current === column.id ? null : current);
+            }}
+            onDrop={event => drop(event, column.id)}>
             <header><h2>{column.id === 'done' ? <Check size={17} /> : <Circle size={14} />}{column.title}</h2>
               <span>{number.format(tasks.length)}</span></header>
-            {tasks.map(task => <TaskCard key={task.id} task={task} onOpen={() => {
+            {tasks.map(task => <TaskCard key={task.id} task={task} draggable={task.can_move && !moving}
+              onDragStart={event => {
+                dragging.current = task;
+                setDragSource(task.column_id);
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', task.id);
+              }}
+              onDragEnd={endDrag} onOpen={() => {
+              if (dragSource || moving) return;
               setOpenPage(data);
               setSelected(task);
             }} />)}
@@ -247,27 +334,11 @@ function Board({ board }) {
       <Pagination page={data} onOffset={setOffset} />
     </>}</Resource>
     {selected && <TaskDialog title={selected === 'new' ? 'تسک جدید' : selected.title} close={close}>
-      {selected === 'new' ? <NewTask candidates={openPage.assignees} onSave={() => {
+      {selected === 'new' ? <NewTask candidates={openPage.assignees} suggestions={openPage.tag_suggestions} onSave={() => {
         close(); setOffset(0); refresh();
-      }} /> : <OpenTask id={selected.id} columns={openPage.columns} candidates={openPage.assignees} onUpdate={refresh} />}
+      }} /> : <OpenTask id={selected.id} columns={openPage.columns.filter(column => selected.move_columns.includes(column.id))} candidates={openPage.assignees} suggestions={openPage.tag_suggestions} onUpdate={refresh} />}
     </TaskDialog>}
-  </>;
-}
-
-export default function Tasks() {
-  const boards = useResource('/tasks/boards', {}, 0, liveApi);
-  const [selected, setSelected] = useState(null);
-  return <Resource result={boards}>{data => {
-    const board = data.items.find(item => item.id === selected) ?? data.items[0];
-    return <div className="task-page">
-      <label className="task-board-picker"><LayoutGrid size={18} />تابلو
-        <select aria-label="تابلو" value={board.id} onChange={event => setSelected(event.target.value)}>
-          {data.items.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-        </select>
-      </label>
-      <Board key={board.id} board={board.id} />
-    </div>;
-  }}</Resource>;
+  </div>;
 }
 
 export function TaskColumns({ canWrite }) {

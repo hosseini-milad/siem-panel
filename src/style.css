@@ -372,3 +372,17 @@ nav a.nav-child { margin-inline-start: 22px; }
 .task-record-card .task-stars { gap: 2px; }
 .task-stars .is-filled { fill: var(--amber); color: var(--amber); }
 .task-star-label { margin-inline-end: 4px; }
+
+.task-dialog .task-description-input { font: inherit; }
+.task-tag-editor { min-width: 0; display: grid; gap: 8px; margin: 0; padding: 8px 10px 10px;
+  border: 1px solid var(--stroke); border-radius: 8px; }
+.task-tag-editor legend { font-size: 13px; }
+.task-tag-choice { display: inline-flex; align-items: center; gap: 2px; padding-inline-end: 4px;
+  border-radius: 999px; background: #a0e6dd; color: #143b3a; }
+.task-tag-choice button { display: inline-grid; place-items: center; width: 20px; height: 20px; padding: 0;
+  border: 0; background: transparent; color: inherit; border-radius: 100%; }
+.task-tag-choice button:hover { background: #143b3a22; }
+.task-tag-suggestions { display: flex; flex-wrap: wrap; gap: 5px; max-height: 110px; overflow-y: auto; }
+.task-tag-suggestions .button { font-size: 11px; padding: 3px 7px; }
+.kanban-column.is-drop-target { min-height: 270px; border-color: var(--purple); background: var(--active); }
+.kanban-card[draggable="true"] { cursor: grab; }
