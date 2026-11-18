@@ -40,9 +40,10 @@ export function seedFlows() {
       raw: { _id: original_id, Timestamp: timestamp, 'Src IP': fields.source_ip,
         'Dst IP': fields.destination_ip, 'Src Port': fields.source_port, 'Dst Port': fields.destination_port,
         Protocol: fields.protocol, 'Flow Duration': duration, 'Tot Fwd Pkts': packets,
-        'TotLen Fwd Pkts': forwardBytes, Label: label },
+        'TotLen Fwd Pkts': forwardBytes, Label: label === 0 ? 'Benign' : label == null ? null : 'DDoS' },
       normalized: { _id: original_id, original_id, 'Flow Duration': (duration - 1000) / (479 * 313),
         'Tot Fwd Pkts': (packets - 2) / 63, ['Protocol_' + fields.protocol]: 1, Label: label },
+      standardized: label == null ? null : { _id: original_id, original_id, Label: label },
       risk: risk(label),
     };
   });
@@ -61,7 +62,7 @@ export function logForExplorer(event) {
     id: event.id, timestamp: event.timestamp, source: event.source, level: event.level, message: event.message,
     source_ip: attributes.source_ip ?? null, destination_ip: attributes.destination_ip ?? null,
     source_port: attributes.source_port ?? null, destination_port: attributes.destination_port ?? attributes.port ?? null,
-    protocol: attributes.protocol ?? null, raw: event, normalized: null, risk: null,
+    protocol: attributes.protocol ?? null, raw: event, normalized: null, standardized: null, risk: null,
   };
 }
 

@@ -16,7 +16,7 @@ const dateRange = value => {
 };
 
 function Risk({ value }) {
-  if (!value) return <span className="muted">ارزیابی نشده</span>;
+  if (!value) return <span className="muted">نهایی نشده</span>;
   return <span className="risk"><Badge value={value.severity} tone={value.severity === 'attack' ? 'red' : value.severity === 'benign' ? 'green' : undefined}>
     {value.severity === 'attack' ? 'حمله' : value.severity === 'benign' ? 'بی‌خطر' : undefined}
   </Badge> {percent.format(value.score)}</span>;
@@ -41,11 +41,14 @@ function RecordDetails({ row, onClose }) {
       <div><h2 id="record-title">جزئیات رکورد</h2><p>{row.message} · <bdi>{row.id}</bdi></p></div>
       <button className="icon-button" type="button" onClick={() => dialog.current.close()} aria-label="بستن جزئیات"><X size={18} /></button>
     </header>
-    <div className="record-risk"><span>مخاطره</span><Risk value={row.risk} />{row.level && <Badge value={row.level} />}</div>
+    <div className="record-risk"><span>برچسب نهایی</span><Risk value={row.risk} />{row.level && <Badge value={row.level} />}</div>
     <section><h3>اطلاعات کامل خام</h3><pre dir="ltr">{JSON.stringify(row.raw, null, 2)}</pre></section>
     <section><h3>اطلاعات نرمال‌شده</h3>{row.normalized
       ? <pre dir="ltr">{JSON.stringify(row.normalized, null, 2)}</pre>
       : <p className="muted">برای این رکورد دادهٔ نرمال‌شده موجود نیست.</p>}</section>
+    <section><h3>اطلاعات استانداردشده</h3>{row.standardized
+      ? <pre dir="ltr">{JSON.stringify(row.standardized, null, 2)}</pre>
+      : <p className="muted">رکورد استانداردشدهٔ متناظر موجود نیست.</p>}</section>
   </dialog>;
 }
 
@@ -114,7 +117,7 @@ export default function Explorer() {
         <label>پروتکل<select name="protocol"><option value="">همه</option><option>TCP</option><option>UDP</option><option>ICMP</option></select></label>
         <label>مخاطره<select name="risk"><option value="">همه</option><option value="attack">حمله</option><option value="critical">بحرانی</option>
           <option value="high">زیاد</option><option value="medium">متوسط</option><option value="low">کم</option>
-          <option value="benign">بی‌خطر</option><option value="unscored">ارزیابی نشده</option></select></label>
+          <option value="benign">بی‌خطر</option><option value="unscored">نهایی نشده</option></select></label>
         {kind === 'logs' && <label>سطح لاگ<select name="level"><option value="">همه</option>
           {logLevels.map(level => <option key={level}>{level}</option>)}</select></label>}
       </fieldset>}
