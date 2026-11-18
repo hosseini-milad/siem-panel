@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Activity, ChevronLeft, Cpu, HardDrive, Laptop, MemoryStick, Monitor, Plus, Search, Server, UserRound, X } from 'lucide-react';
+import { Activity, ChevronLeft, Cpu, HardDrive, Laptop, MemoryStick, Monitor, Plus, Search, Server, TriangleAlert, UserRound, X } from 'lucide-react';
 import { Badge, number } from './ui.jsx';
-import { deviceStorageKey, deviceTypes, normalizeDeviceIp, sampleDevices } from './deviceHealth.js';
+import { deviceStorageKey, deviceTypes, forecastWarningThreshold, normalizeDeviceIp, sampleDevices } from './deviceHealth.js';
 
 const icons = { desktop: Monitor, laptop: Laptop, server: Server };
 const metrics = [
@@ -51,8 +51,15 @@ function DeviceForm({ device, devices, onSave }) {
     if (!values.name) return setError('نام سیستم را وارد کنید.');
     if (!ip) return setError('یک نشانی معتبر IPv4 یا IPv6 وارد کنید.');
     if (devices.some(item => item.id !== device?.id && item.ip === ip)) return setError('این IP قبلاً به یک سیستم متصل شده است.');
-    const readings = Object.fromEntries(metrics.map(([key]) => [key, online && values[key] ? Number(values[key]) : null]));
-    onSave({ ...values, ...readings, online, ip, id: device?.id ?? crypto.getRandomValues(new Uint32Array(4)).join('-') });
+    const reading = value => online && value ? Number(value) : null;
+    const readings = Object.fromEntries(metrics.map(([key]) => [key, reading(values[key])]));
+    const forecast = Object.fromEntries(metrics.map(([key]) => {
+      const input = `forecast-${key}`;
+      const prediction = reading(values[input]);
+      delete values[input];
+      return [key, prediction];
+    }));
+    onSave({ ...values, ...readings, forecast, online, ip, id: device?.id ?? crypto.getRandomValues(new Uint32Array(4)).join('-') });
   }
 
   return <form className="device-form" onSubmit={submit}>
@@ -82,6 +89,11 @@ function DeviceForm({ device, devices, onSave }) {
         <input name={key} type="number" min="0" max="100" step="1" defaultValue={device?.[key] ?? ''} />
       </label>)}
     </fieldset>
+    <fieldset disabled={!online}><legend>پیش‌بینی مصرف (ماک)</legend>
+      {metrics.map(([key, label]) => <label key={key}>پیش‌بینی {label} (درصد)
+        <input name={`forecast-${key}`} type="number" min="0" max="100" step="1" defaultValue={device?.forecast?.[key] ?? ''} />
+      </label>)}
+    </fieldset>
     {error && <p className="notice error" role="alert">{error}</p>}
     <button className="button primary" type="submit">ذخیرهٔ سیستم</button>
   </form>;
@@ -98,12 +110,21 @@ function DeviceCard({ device, onDetails, onUser }) {
     <div className="device-metrics">
       {metrics.map(([key, label, Icon]) => {
         const value = device.online ? device[key] : null;
+        const forecast = device.online ? device.forecast?.[key] : null;
+        const difference = value != null && forecast != null ? Math.abs(value - forecast) : null;
+        const warning = difference != null && difference >= forecastWarningThreshold;
         return <div key={key}>
           <div className="device-metric-label"><span><Icon size={15} aria-hidden="true" />{label}</span>
             <strong>{value == null ? '—' : percent.format(value / 100)}</strong></div>
           <div className="device-meter">
             {value != null && <meter className={value >= 85 ? 'device-high' : undefined} aria-label={label} min={0} max={100} value={value} />}
+            {forecast != null && <span className="device-forecast-marker" aria-hidden="true"
+              style={{ '--forecast-position': `${forecast}%` }} />}
           </div>
+          {forecast != null && <div className="device-forecast-caption">
+            <span>پیش‌بینی {percent.format(forecast / 100)}</span>
+            {warning && <strong><TriangleAlert size={14} aria-hidden="true" />هشدار · اختلاف {number.format(difference)} واحد درصد</strong>}
+          </div>}
         </div>;
       })}
     </div>
@@ -159,6 +180,7 @@ export default function DeviceHealth() {
           <span>{label}</span><strong>{number.format(count)}</strong></div>)}
     </div>
     {feedback && <p role="status" className="notice device-feedback">{feedback}</p>}
+    <p className="device-forecast-legend"><span>نشانگر زرد</span> پیش‌بینی مصرف است. اختلاف {number.format(forecastWarningThreshold)} واحد درصد یا بیشتر هشدار دارد.</p>
     <div className="device-grid">
       {visible.map(device => <DeviceCard key={device.id} device={device}
         onDetails={() => setDialog({ mode: 'details', device })}
