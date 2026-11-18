@@ -98,7 +98,7 @@ function Prediction({ model, rawAvailable, maxRows }) {
   </Card>;
 }
 
-function ModelDetails({ model }) {
+function ModelDetails({ model, canWrite }) {
   const { features, ensemble = {} } = model;
   const requirements = model.input_requirements;
   const rawAvailable = requirements?.raw.available ?? Boolean(model.normalization_schema?.length && model.behavior_bounds);
@@ -156,11 +156,11 @@ function ModelDetails({ model }) {
         </> : 'مدل جاری اطلاعات پیش‌پردازش ورودی خام را ندارد.'}</dd>
       </dl>
     </Card>
-    <Prediction model={model} rawAvailable={rawAvailable} maxRows={maxRows} />
+    {canWrite && <Prediction model={model} rawAvailable={rawAvailable} maxRows={maxRows} />}
   </>;
 }
 
-export default function CurrentModel() {
+export default function CurrentModel({ canWrite, showAnalytics }) {
   const [revision, setRevision] = useState(0);
   const model = useResource('/ml/model', {}, revision, liveApi);
   const unavailable = model.error === 'No trained model is active';
@@ -168,9 +168,9 @@ export default function CurrentModel() {
     <div className="model-actions">
       <button className="button" onClick={() => setRevision(value => value + 1)}><RefreshCw size={16} /> تازه‌سازی</button>
       <button className="button" disabled={!model.data} onClick={() => download(model.data)}><Download size={16} /> دریافت JSON</button>
-      <a className="button" href="#analytics"><ArrowLeft size={16} /> تحلیل هوشمند</a>
+      {showAnalytics && <a className="button" href="#analytics"><ArrowLeft size={16} /> تحلیل هوشمند</a>}
     </div>
     {unavailable ? <p className="notice" role="status">هنوز مدل آموزش‌دیده‌ای فعال نیست.</p>
-      : <Resource result={model}>{data => <ModelDetails key={revision} model={data} />}</Resource>}
+      : <Resource result={model}>{data => <ModelDetails key={revision} model={data} canWrite={canWrite} />}</Resource>}
   </div>;
 }

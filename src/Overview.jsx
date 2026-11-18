@@ -61,7 +61,7 @@ function OverviewTrend({ since, hours }) {
   return <Resource result={charts}>{data => <Trend series={data.series} interval={data.interval} />}</Resource>;
 }
 
-export default function Overview({ hours }) {
+export default function Overview({ hours, showEvents }) {
   const overview = useResource('/overview', { hours });
   const events = useResource('/search/events', { limit: 5 });
   return <>
@@ -79,9 +79,9 @@ export default function Overview({ hours }) {
         <Resource result={overview}>{data => <Levels levels={data.levels} total={data.event_count} />}</Resource>
       </Card>
     </div>
-    <Card title="آخرین رویدادها" detail="تازه‌ترین رویدادهای ثبت‌شده"
+    {showEvents && <Card title="آخرین رویدادها" detail="تازه‌ترین رویدادهای ثبت‌شده"
       action={<a className="text-link" href="#events">همهٔ رویدادها <ArrowUpLeft size={15} /></a>}>
       <Resource result={events}>{data => <Table columns={eventColumns} rows={data.items} />}</Resource>
-    </Card>
+    </Card>}
   </>;
 }

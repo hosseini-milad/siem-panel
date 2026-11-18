@@ -12,7 +12,7 @@ const initialBatch = () => JSON.stringify({
   }],
 }, null, 2);
 
-export function Ingestion() {
+export function Ingestion({ canWrite }) {
   const [input, setInput] = useState(initialBatch);
   const [feedback, setFeedback] = useState({});
   const [pending, setPending] = useState(false);
@@ -37,7 +37,7 @@ export function Ingestion() {
   }
 
   return <div className="stack">
-    <Card title="ارسال گروه رویدادها" detail="ساختار ورودی مطابق POST /ingestion/batches">
+    {canWrite && <Card title="ارسال گروه رویدادها" detail="ساختار ورودی مطابق POST /ingestion/batches">
       <form className="batch-form" onSubmit={submit}>
         <label htmlFor="batch">بدنهٔ درخواست JSON</label>
         <textarea id="batch" dir="ltr" spellCheck={false} value={input} onChange={event => setInput(event.target.value)} required />
@@ -48,7 +48,7 @@ export function Ingestion() {
         {feedback.error && <p className="notice error" role="alert">{feedback.error}</p>}
         {feedback.message && <p className="notice" role="status">{feedback.message} · <bdi className="mono">{feedback.id}</bdi></p>}
       </form>
-    </Card>
+    </Card>}
     <Card title="آخرین لاگ‌ها"><Resource result={logs}>{data => <Table columns={eventColumns} rows={data.items} />}</Resource></Card>
   </div>;
 }
@@ -76,7 +76,7 @@ export function Events() {
   </Card>;
 }
 
-export function Worklist({ mode }) {
+export function Worklist({ mode, canWrite }) {
   const [revision, setRevision] = useState(0);
   const [offset, setOffset] = useState(0);
   const [query, setQuery] = useState({});
@@ -104,9 +104,9 @@ export function Worklist({ mode }) {
     { key: 'severity', label: 'شدت', render: row => <Badge value={row.severity} /> },
     ...(rules ? [{ key: 'threshold', label: 'آستانه', render: row => number.format(row.threshold) }] : []),
     { key: 'state', label: 'وضعیت', render: row => rules
-      ? <label className="toggle"><input type="checkbox" checked={row.enabled} aria-label={`فعال بودن ${row.name}`} disabled={pending}
+      ? <label className="toggle"><input type="checkbox" checked={row.enabled} aria-label={`فعال بودن ${row.name}`} disabled={pending || !canWrite}
           onChange={event => change(row.id, { enabled: event.target.checked })} />{row.enabled ? 'فعال' : 'غیرفعال'}</label>
-      : <select aria-label={`وضعیت ${row.title}`} value={row.status} disabled={pending}
+      : <select aria-label={`وضعیت ${row.title}`} value={row.status} disabled={pending || !canWrite}
           onChange={event => change(row.id, { status: event.target.value })}>
           {options.map(status => <option key={status} value={status}>{statuses[status]}</option>)}
         </select> },
@@ -125,7 +125,7 @@ export function Worklist({ mode }) {
   </Card>;
 }
 
-export function Analytics() {
+export function Analytics({ showCurrentModel }) {
   const folders = useResource('/datasets/folders');
   const normalized = useResource('/normalization/records', { limit: 1 });
   const standardized = useResource('/standardization/records', { limit: 1 });
@@ -137,7 +137,7 @@ export function Analytics() {
     <Card title="نرمال‌سازی"><Resource result={normalized}>{data => <p className="notice">{number.format(data.total)} رکورد نرمال‌شده</p>}</Resource></Card>
     <Card title="استانداردسازی"><Resource result={standardized}>{data => <p className="notice">{number.format(data.total)} رکورد استاندارد</p>}</Resource></Card>
     <Card title="یادگیری ماشین" detail="LightGBM · CatBoost"
-      action={<a className="button" href="#current-model">مدل جاری</a>}><Resource result={status}>{data => <p className="notice">
+      action={showCurrentModel && <a className="button" href="#current-model">مدل جاری</a>}><Resource result={status}>{data => <p className="notice">
       <Badge tone={data.machine_learning.available ? 'green' : 'amber'}>{data.machine_learning.available ? 'مدل آماده' : 'مدل هنوز آماده نیست'}</Badge>
     </p>}</Resource></Card>
   </div>;

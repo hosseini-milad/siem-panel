@@ -30,3 +30,13 @@ export const sampleDevices = [
     os: 'Windows 11 Pro', processor: 'Intel Core i5-1335U', memory: '16 GB', storage: '512 GB SSD',
     cpu: null, ram: null, disk: null },
 ];
+
+export function loadDevices() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(deviceStorageKey));
+    if (Array.isArray(saved)) return saved;
+  } catch {
+    // The mock still works in memory when storage is unavailable.
+  }
+  return sampleDevices;
+}

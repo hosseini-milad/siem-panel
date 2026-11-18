@@ -300,3 +300,31 @@ nav a.nav-child { margin-inline-start: 22px; }
 .device-forecast-caption span, .device-forecast-legend span { color: var(--amber); }
 .device-forecast-caption strong { display: inline-flex; align-items: center; gap: 4px; color: var(--red); }
 .device-forecast-legend { color: var(--muted); font-size: 12px; }
+
+.login-screen { min-height: 100dvh; display: grid; place-items: center; position: relative; padding: 55px 16px 28px; }
+.login-theme { position: absolute; inset-block-start: 16px; inset-inline-end: 16px; }
+.login-card { width: min(100%, 405px); padding: clamp(18px, 5vw, 32px); }
+.login-card h1 { font-size: 22px; margin: 20px 0 12px; }
+.login-brand, .account-identity { display: flex; align-items: center; gap: 10px; }
+.login-brand strong, .login-brand small { display: block; }
+.login-brand strong { letter-spacing: .12em; }
+.account-form, .account-fields, .account-permissions { display: grid; gap: 12px; }
+.account-form label { display: grid; gap: 5px; font-size: 13px; min-width: 0; }
+.account-form input, .account-form select { width: 100%; min-width: 0; }
+.account-form .notice { padding: 0; }
+.account-form .primary, .workspace .card-header .button.primary { background: var(--accent); color: white; }
+.account-form .button { justify-content: center; }
+.user-editor { padding: 0 16px 16px; }
+.account-fields, .account-permissions { grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
+.account-permissions { border: 1px solid var(--stroke); border-radius: 8px; min-width: 0; margin: 0; padding: 12px; }
+.account-permissions legend { padding-inline: 6px; font-size: 13px; font-weight: 700; }
+.account-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.account-actions .account-disable { color: var(--red); }
+.account-identity svg { color: var(--purple); flex: none; }
+.session-label { display: grid; max-width: 130px; line-height: 1.35; }
+.session-label strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-label small { font-size: 10px; white-space: nowrap; }
+@media (max-width: 400px) {
+  .session-label { max-width: 76px; }
+  .top-actions { gap: 5px; }
+}

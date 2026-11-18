@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Activity, ChevronLeft, Cpu, HardDrive, Laptop, MemoryStick, Monitor, Plus, Search, Server, TriangleAlert, UserRound, X } from 'lucide-react';
 import { Badge, number } from './ui.jsx';
-import { deviceStorageKey, deviceTypes, forecastWarningThreshold, normalizeDeviceIp, sampleDevices } from './deviceHealth.js';
+import { deviceStorageKey, deviceTypes, forecastWarningThreshold, loadDevices, normalizeDeviceIp } from './deviceHealth.js';
 
 const icons = { desktop: Monitor, laptop: Laptop, server: Server };
 const metrics = [
@@ -18,16 +18,6 @@ const fields = [
   ['name', 'نام سیستم'], ['ip', 'نشانی IP'], ['user', 'نام کاربر'], ['role', 'سمت'], ['access', 'دسترسی‌ها'],
   ...specifications,
 ];
-
-function initialDevices() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(deviceStorageKey));
-    if (Array.isArray(saved)) return saved;
-  } catch {
-    // The mock still works in memory when storage is unavailable.
-  }
-  return sampleDevices;
-}
 
 function DeviceDialog({ title, onClose, children }) {
   const dialog = useRef(null);
@@ -135,8 +125,9 @@ function DeviceCard({ device, onDetails, onUser }) {
   </article>;
 }
 
-export default function DeviceHealth() {
-  const [devices, setDevices] = useState(initialDevices);
+export default function DeviceHealth({ canWrite, deviceId }) {
+  const [allDevices, setDevices] = useState(loadDevices);
+  const devices = deviceId ? allDevices.filter(device => device.id === deviceId) : allDevices;
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
   const [dialog, setDialog] = useState(null);
@@ -172,7 +163,7 @@ export default function DeviceHealth() {
       <select aria-label="فیلتر وضعیت" value={status} onChange={event => setStatus(event.target.value)}>
         <option value="all">همهٔ وضعیت‌ها</option><option value="online">روشن</option><option value="offline">خاموش</option>
       </select>
-      <button className="button primary" onClick={() => setDialog({ mode: 'form' })}><Plus size={17} />ثبت سیستم</button>
+      {canWrite && <button className="button primary" onClick={() => setDialog({ mode: 'form' })}><Plus size={17} />ثبت سیستم</button>}
     </div>
     <div className="device-summary">
       {[[Monitor, 'کل سیستم‌ها', devices.length], [Activity, 'روشن', onlineCount], [Monitor, 'خاموش', devices.length - onlineCount]]
@@ -186,8 +177,8 @@ export default function DeviceHealth() {
         onDetails={() => setDialog({ mode: 'details', device })}
         onUser={() => setDialog({ mode: 'user', device })} />)}
     </div>
-    {visible.length === 0 && <p className="notice" role="status">سیستمی با این فیلترها پیدا نشد.</p>}
-    {dialog?.mode === 'form' && <DeviceDialog title={dialog.device ? 'ویرایش سیستم' : 'ثبت سیستم جدید'} onClose={close}>
+    {visible.length === 0 && <p className="notice" role="status">{deviceId && !devices.length ? 'سیستم متصل در دادهٔ ماک این مرورگر موجود نیست.' : 'سیستمی با این فیلترها پیدا نشد.'}</p>}
+    {canWrite && dialog?.mode === 'form' && <DeviceDialog title={dialog.device ? 'ویرایش سیستم' : 'ثبت سیستم جدید'} onClose={close}>
       <DeviceForm device={dialog.device} devices={devices} onSave={save} />
     </DeviceDialog>}
     {dialog?.mode === 'details' && <DeviceDialog title={dialog.device.name} onClose={close}>
@@ -199,7 +190,7 @@ export default function DeviceHealth() {
       </dl>
       <div className="device-dialog-actions">
         <button className="button" onClick={() => setDialog({ ...dialog, mode: 'user' })}>کاربر جاری</button>
-        <button className="button primary" onClick={() => setDialog({ ...dialog, mode: 'form' })}>ویرایش سیستم</button>
+        {canWrite && <button className="button primary" onClick={() => setDialog({ ...dialog, mode: 'form' })}>ویرایش سیستم</button>}
       </div>
     </DeviceDialog>}
     {dialog?.mode === 'user' && <DeviceDialog title="کاربر جاری سیستم" onClose={close}>
