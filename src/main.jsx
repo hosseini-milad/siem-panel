@@ -1,23 +1,25 @@
 import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  ArrowDownToLine, BellRing, CalendarDays, ChevronLeft, CircleHelp, FolderOpen,
+  ArrowDownToLine, BellRing, CalendarDays, ChevronLeft, CircleHelp, Database, FolderOpen,
   LayoutDashboard, Menu, Moon, ScanLine, Search, Settings, Shield, Sparkles, Sun, X,
 } from 'lucide-react';
 import '@fontsource-variable/vazirmatn';
 import Overview from './Overview.jsx';
+import Explorer from './Explorer.jsx';
 import { Analytics, Events, Ingestion, System, Worklist } from './Pages.jsx';
 import { Resource, useResource } from './ui.jsx';
 import './style.css';
 
 const icons = {
-  overview: LayoutDashboard, ingestion: ArrowDownToLine, events: Search, detections: ScanLine,
+  overview: LayoutDashboard, ingestion: ArrowDownToLine, events: Search, explorer: Database, detections: ScanLine,
   alerts: BellRing, incidents: FolderOpen, analytics: Sparkles, system: Settings,
 };
 const descriptions = {
   overview: 'نمای متمرکز فعالیت‌ها و وضعیت امنیتی سامانه',
   ingestion: 'ثبت گروهی و بررسی آخرین لاگ‌های دریافتی',
   events: 'مرور و فیلتر رویدادهای عملیاتی',
+  explorer: 'بررسی روزانهٔ داده‌های شبکه و لاگ‌ها',
   detections: 'مشاهده و فعال‌سازی قواعد تشخیص',
   alerts: 'پیگیری هشدارهای امنیتی و تغییر وضعیت آن‌ها',
   incidents: 'مدیریت وضعیت پرونده‌های بررسی',
@@ -40,7 +42,9 @@ function App() {
   const [drawer, setDrawer] = useState(false);
   const [hours, setHours] = useState(24);
   const navigation = useResource('/system/navigation');
-  const menus = navigation.data?.menus ?? [];
+  const menus = (navigation.data?.menus ?? []).flatMap(menu => menu.id === 'events'
+    ? [menu, { id: 'explorer', label: 'کاوش داده‌ها' }]
+    : [menu]);
   const current = menus.find(menu => menu.id === route);
 
   useEffect(() => {
@@ -75,7 +79,7 @@ function App() {
       </div>
       <nav aria-label="منوی اصلی">
         <p className="nav-label">فضای کاری</p>
-        <Resource result={navigation}>{data => data.menus.map(({ id, label }) => {
+        <Resource result={navigation}>{() => menus.map(({ id, label }) => {
           const Icon = icons[id] ?? CircleHelp;
           return <a key={id} href={'#' + id} aria-current={route === id ? 'page' : undefined}
               onClick={() => setDrawer(false)}><Icon size={19} strokeWidth={1.8} />{label}</a>;
@@ -110,6 +114,7 @@ function App() {
         {route === 'overview' && <Overview hours={hours} />}
         {route === 'ingestion' && <Ingestion />}
         {route === 'events' && <Events />}
+        {route === 'explorer' && <Explorer />}
         {['detections', 'alerts', 'incidents'].includes(route) && <Worklist key={route} mode={route} />}
         {route === 'analytics' && <Analytics />}
         {route === 'system' && <System />}

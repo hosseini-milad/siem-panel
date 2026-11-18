@@ -169,3 +169,21 @@ input[type="checkbox"] { accent-color: var(--accent); }
   .metric strong { font-size: 25px; }
   th, td { padding-inline: 11px; }
 }
+.explorer-toolbar, .explorer-search, .explorer-tabs { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.explorer-toolbar, .explorer-form { padding: 0 16px 14px; }
+.explorer-tabs [aria-pressed="true"] { color: var(--purple); background: var(--active); }
+.explorer-date { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.explorer-search label, .advanced-filters label { display: grid; gap: 5px; font-size: 12px; color: var(--muted); }
+.explorer-search label { flex: 1 1 210px; }
+.advanced-filters { margin: 14px 0 0; padding: 10px; border: 1px solid var(--stroke); border-radius: 8px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 9px; min-width: 0; }
+.advanced-filters input, .advanced-filters select { width: 100%; min-width: 0; }
+.advanced-filters legend { font-size: 12px; color: var(--muted); }
+.risk { white-space: nowrap; }
+.record-dialog { color: var(--text); background: var(--surface); border: 1px solid var(--stroke);
+  padding: 0 0 14px; border-radius: 14px; width: min(620px, calc(100% - 24px)); max-height: 88dvh; }
+.record-dialog::backdrop { background: var(--overlay); }
+.record-dialog section, .record-risk { padding: 0 16px; }
+.record-dialog h3 { font-size: 14px; }
+.record-dialog pre { overflow: auto; background: var(--bg); border-radius: 8px; padding: 12px; font-size: 12px; }
+.record-risk { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; }

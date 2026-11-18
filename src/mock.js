@@ -1,3 +1,5 @@
+import { filterRecords, logForExplorer, seedArchivedLogs, seedFlows } from './explorerMock.js';
+
 const menus = [
   ['overview', 'نمای کلی', ['Overview']],
   ['ingestion', 'ورود و پردازش', ['Ingestion', 'Logs']],
@@ -29,7 +31,8 @@ function seed() {
   const events = hourlyCounts.flatMap((count, bucket) => Array.from({ length: count }, (_, index) => {
     const [source, level, message] = sources[(index * 7 + bucket) % sources.length];
     const timestamp = iso(now - ((hourlyCounts.length - 1 - bucket) * hour + index * 20_000));
-    return { id: crypto.randomUUID(), source, level, message, timestamp, received_at: timestamp, attributes: {} };
+    return { id: crypto.randomUUID(), source, level, message, timestamp, received_at: timestamp, attributes: { source_ip: `192.0.2.${10 + index % 16}`, destination_ip: `198.51.100.${20 + index % 8}`,
+      source_port: 49152 + index, destination_port: [443, 53, 22, 8080][index % 4], protocol: index % 4 === 1 ? "UDP" : "TCP" } };
   })).reverse();
   const alerts = [
     ['فعالیت مشکوک در ایستگاه کاری', 'critical', 'open', 'endpoint-07'],
@@ -55,7 +58,7 @@ function seed() {
     ...fields(120), name, description: 'شمارش رویدادها به تفکیک منبع',
     source, level, severity, threshold, enabled, lookback_seconds: 300, cooldown_seconds: 300,
   }));
-  return { events, alerts, incidents, rules, batches: new Map() };
+  return { events: [...events, ...seedArchivedLogs(events)], flows: seedFlows(), alerts, incidents, rules, batches: new Map() };
 }
 
 function json(data, status = 200) {
@@ -136,6 +139,10 @@ export function createMockRequest() {
         case '/dashboard/charts': {
           const interval = params.get('interval') ?? 'hour';
           return json({ interval, ...statistics(selectEvents(data.events, params), interval) });
+        }
+        case '/explorer/records': {
+          const records = params.get('kind') === 'logs' ? data.events.map(logForExplorer) : data.flows;
+          return json(page(filterRecords(records, params), params));
         }
         case '/logs': return json(page(selectEvents(data.events, params, false), params));
         case '/search/events': return json({ ...page(selectEvents(data.events, params), params), engine: 'mongodb' });

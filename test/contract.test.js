@@ -71,3 +71,24 @@ test('the real request adapter receives an API URL and JSON payload', async () =
     method: 'PATCH', query: { status: 'open', empty: '', skip: undefined }, body: { status: 'resolved' },
   })).status, 'resolved');
 });
+
+test('explorer filters by date and exact network fields before pagination', async () => {
+  const api = setup();
+  const all = await api('/explorer/records', { query: { kind: 'data', limit: 480 } });
+  const row = all.items.find(item => item.risk);
+  const start = row.timestamp.slice(0, 10) + 'T00:00:00.000Z';
+  const end = new Date(Date.parse(start) + 86_400_000).toISOString();
+  const query = { kind: 'data', start, end, source_ip: row.source_ip,
+    destination_port: row.destination_port, q: row.source_ip, limit: 1 };
+  const first = await api('/explorer/records', { query });
+  assert.ok(first.total >= 1);
+  const match = first.items[0];
+  assert.equal(match.source_ip, row.source_ip);
+  assert.equal(match.destination_port, row.destination_port);
+  assert.equal(match.id, match.normalized.original_id);
+  assert.ok(match.timestamp >= start && match.timestamp < end);
+  assert.equal((await api('/explorer/records', { query: { ...query, offset: first.total } })).items.length, 0);
+  const logs = await api('/explorer/records', { query: { kind: 'logs', risk: 'unscored' } });
+  assert.ok(logs.total > 0);
+  assert.ok(logs.items.every(item => item.risk === null && item.normalized === null && item.raw.attributes));
+});
