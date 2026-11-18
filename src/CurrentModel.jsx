@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, Download, RefreshCw } from 'lucide-react';
 import { liveApi } from './api.js';
+import ModelEvaluation from './ModelEvaluation.jsx';
 import { Badge, Card, number, Resource, Table, useResource } from './ui.jsx';
 
 const percent = new Intl.NumberFormat('fa-IR', { style: 'percent', maximumFractionDigits: 2 });
@@ -132,6 +133,7 @@ function ModelDetails({ model }) {
         <li>احتمال حمله و برچسب<br /><small>آستانهٔ {percent.format(model.threshold)}</small></li>
       </ol>
     </Card>
+    <ModelEvaluation model={model} />
     <Card title="ویژگی‌ها به ترتیب ورودی" detail="اهمیت‌ها با معیار همان مدل نمایش داده می‌شوند و مقیاس‌های متفاوتی دارند.">
       <Table columns={columns} rows={rows} />
     </Card>
