@@ -2,10 +2,11 @@ import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   ArrowDownToLine, BellRing, CalendarDays, ChevronLeft, CircleHelp, Database, FolderOpen,
-  LayoutDashboard, Network, Menu, Moon, ScanLine, Search, Settings, Shield, Sparkles, Sun, X,
+  LayoutDashboard, Network, Menu, Monitor, Moon, ScanLine, Search, Settings, Shield, Sparkles, Sun, X,
 } from 'lucide-react';
 import '@fontsource-variable/vazirmatn';
 import Overview from './Overview.jsx';
+import DeviceHealth from './DeviceHealth.jsx';
 import Explorer from './Explorer.jsx';
 import CurrentModel from './CurrentModel.jsx';
 import { Analytics, Events, Ingestion, System, Worklist } from './Pages.jsx';
@@ -14,7 +15,7 @@ import './style.css';
 
 const icons = {
   overview: LayoutDashboard, ingestion: ArrowDownToLine, events: Search, explorer: Database, detections: ScanLine,
-  alerts: BellRing, incidents: FolderOpen, analytics: Sparkles, 'current-model': Network, system: Settings,
+  alerts: BellRing, incidents: FolderOpen, analytics: Sparkles, 'current-model': Network, system: Settings, 'device-health': Monitor,
 };
 const descriptions = {
   overview: 'نمای متمرکز فعالیت‌ها و وضعیت امنیتی سامانه',
@@ -27,6 +28,7 @@ const descriptions = {
   analytics: 'وضعیت آماده‌سازی داده و مدل‌های تشخیص',
   'current-model': 'ساختار، ویژگی‌ها و قرارداد ورودی مدل فعال',
   system: 'سلامت مؤلفه‌ها و تنظیمات سرویس',
+  'device-health': 'وضعیت و مصرف منابع دستگاه‌ها · داده‌های ماک',
 };
 const readRoute = () => {
   const id = window.location.hash.slice(1);
@@ -47,8 +49,10 @@ function App() {
   const menus = (navigation.data?.menus ?? []).flatMap(menu => menu.id === 'events'
     ? [menu, { id: 'explorer', label: 'کاوش داده‌ها' }]
     : menu.id === 'analytics' ? [menu, { id: 'current-model', label: 'مدل جاری', parent: 'analytics' }]
+    : menu.id === 'system' ? [menu, { id: 'device-health', label: 'سلامت سیستم‌ها', parent: 'system' }]
     : [menu]);
   const current = menus.find(menu => menu.id === route);
+  const title = current?.label ?? ({ 'current-model': 'مدل جاری', 'device-health': 'سلامت سیستم‌ها' }[route] ?? 'نمای کلی');
 
   useEffect(() => {
     function navigate() {
@@ -96,7 +100,7 @@ function App() {
           <button className="icon-button drawer-trigger" aria-controls="sidebar" aria-expanded={drawer}
             aria-label="باز کردن منو" onClick={() => setDrawer(true)}><Menu size={20} /></button>
           <span>مرکز عملیات امنیت</span><ChevronLeft size={15} />{route === 'current-model' && <><a href="#analytics">تحلیل هوشمند</a><ChevronLeft size={15} /></>}
-          <strong>{current?.label ?? (route === 'current-model' ? 'مدل جاری' : 'نمای کلی')}</strong>
+          <strong>{title}</strong>
         </div>
         <div className="top-actions">
           <span className="mock-chip"><i /> {['explorer', 'current-model'].includes(route) ? 'API واقعی' : 'حالت ماک'}</span>
@@ -108,7 +112,7 @@ function App() {
       </header>
       <main id="main">
         <header className="page-heading">
-          <div><h1>{current?.label ?? (route === 'current-model' ? 'مدل جاری' : 'نمای کلی')}</h1><p>{descriptions[route]}</p></div>
+          <div><h1>{title}</h1><p>{descriptions[route]}</p></div>
           {route === 'overview' && <label className="range"><CalendarDays size={17} />
             <select aria-label="بازهٔ زمانی" value={hours} onChange={event => setHours(Number(event.target.value))}>
               <option value="24">۲۴ ساعت اخیر</option><option value="168">۷ روز اخیر</option><option value="720">۳۰ روز اخیر</option>
@@ -123,6 +127,7 @@ function App() {
         {route === 'analytics' && <Analytics />}
         {route === 'current-model' && <CurrentModel />}
         {route === 'system' && <System />}
+        {route === 'device-health' && <DeviceHealth />}
       </main>
     </div>
   </div>;
