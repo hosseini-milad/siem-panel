@@ -78,7 +78,7 @@ export default function Explorer() {
       <button type="button" className="button" onClick={() => setSelected(row)}>مشاهده</button> },
   ];
 
-  return <Card title="داده‌ها و لاگ‌ها" detail="روز بر اساس منطقهٔ زمانی مرورگر است. برای مشاهدهٔ همهٔ روزها تاریخ را پاک کنید.">
+  return <Card title="داده‌ها و لاگ‌ها" detail="روز بر اساس منطقهٔ زمانی مرورگر است. فیلترها حداکثر روی ۱۰۰۰ رکورد از بازهٔ انتخابی اعمال می‌شوند.">
     <div className="explorer-toolbar">
       <div className="explorer-tabs" aria-label="نوع رکورد">
         {[['data', 'داده‌های شبکه'], ['logs', 'لاگ‌ها']].map(([key, label]) =>
