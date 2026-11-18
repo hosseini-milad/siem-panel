@@ -386,3 +386,22 @@ nav a.nav-child { margin-inline-start: 22px; }
 .task-tag-suggestions .button { font-size: 11px; padding: 3px 7px; }
 .kanban-column.is-drop-target { min-height: 270px; border-color: var(--purple); background: var(--active); }
 .kanban-card[draggable="true"] { cursor: grab; }
+
+.task-dialog .task-comment-input { font: inherit; }
+.user-avatar { width: 27px; height: 27px; display: inline-grid; place-items: center; flex: 0 0 auto;
+  border-radius: 50%; overflow: hidden; background: var(--active); color: var(--purple);
+  border: 1px solid var(--stroke); font-size: 10px; font-weight: 700; line-height: 1; }
+.user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-upload { position: relative; flex: none; }
+.avatar-upload-button { position: relative; display: grid; padding: 0; border: 0; background: transparent; }
+.avatar-upload-button .user-avatar { width: 34px; height: 34px; }
+.avatar-camera { position: absolute; inset-inline-end: -3px; inset-block-end: -2px; display: grid;
+  place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); color: var(--purple); }
+.avatar-feedback:not(:empty) { position: absolute; z-index: 5; inset-inline-end: 0; inset-block-start: calc(100% + 8px);
+  width: max-content; max-width: 180px; padding: 6px 8px; background: var(--surface); border: 1px solid var(--stroke);
+  border-radius: 8px; color: var(--text); font-size: 11px; pointer-events: none; }
+.task-record-footer .task-avatar-stack { flex-wrap: wrap; gap: 2px; flex: 1; justify-content: flex-end; }
+.task-avatar-stack .user-avatar { width: 22px; height: 22px; font-size: 9px; }
+.kanban-scroll { max-height: min(66vh, 540px); min-height: 120px; overflow-y: auto; overscroll-behavior-y: contain;
+  display: grid; align-content: start; gap: 8px; padding: 1px; scrollbar-width: thin; }
+.kanban-scroll > .button { justify-self: center; }

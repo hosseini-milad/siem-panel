@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Building2, LogIn, Pencil, Shield, ShieldCheck, UserRound, UserRoundPlus, UserRoundX } from 'lucide-react';
+import { Building2, LogIn, Pencil, Shield, ShieldCheck, UserRoundPlus, UserRoundX } from 'lucide-react';
+import { Avatar } from './Avatar.jsx';
 import { liveApi } from './api.js';
 import SystemFields, { systemValues } from './SystemFields.jsx';
 import { Badge, Card, Pagination, Resource, Table, useResource } from './ui.jsx';
@@ -140,7 +141,7 @@ export default function Users({ user }) {
   }
 
   const columns = [
-    { key: 'name', label: 'کاربر', render: row => <div className="account-identity"><UserRound size={17} />
+    { key: 'name', label: 'کاربر', render: row => <div className="account-identity"><Avatar person={row} />
       <div><strong>{row.name}</strong><small className="row-detail"><bdi dir="ltr">{row.username}</bdi></small></div></div> },
     { key: 'role', label: 'نقش', render: row => roleLabels[row.role] },
     { key: 'branch', label: 'شاخه', render: row => row.branch || '—' },

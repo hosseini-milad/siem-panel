@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { CalendarDays, Check, Circle, Hash, MessageSquare, Pencil, Plus, RefreshCw, Star, UserRound, UsersRound, X } from 'lucide-react';
+import { Avatar } from './Avatar.jsx';
 import { liveApi } from './api.js';
-import { Badge, Card, number, Pagination, Resource, Table, useResource } from './ui.jsx';
+import { Badge, Card, number, Resource, Table, useResource } from './ui.jsx';
 
 const priorities = {
   low: ['کم', 'muted'], normal: ['عادی', 'blue'], high: ['زیاد', 'amber'], urgent: ['فوری', 'red'],
@@ -93,7 +94,7 @@ function Tags({ tags }) {
   return <div className="task-tags">{tags.map(tag => <bdi key={tag}>{tag}</bdi>)}</div>;
 }
 
-function TaskCard({ task, onOpen, onDragStart, onDragEnd, draggable }) {
+function TaskCard({ task, user, onOpen, onDragStart, onDragEnd, draggable }) {
   const stars = Object.keys(priorities).indexOf(task.priority) + 1;
   return <button className="kanban-card task-record-card" type="button" onClick={onOpen} draggable={draggable}
     onDragStart={onDragStart} onDragEnd={onDragEnd}>
@@ -111,8 +112,9 @@ function TaskCard({ task, onOpen, onDragStart, onDragEnd, draggable }) {
         {Array.from({ length: 4 }, (_, index) =>
           <Star key={index} size={14} className={index < stars ? 'is-filled' : ''} aria-hidden="true" />)}
       </span>
-      <span title={task.assignees.map(person => person.name).join('، ')}><UsersRound size={15} />
-        <span>{number.format(task.assignees.length)}</span></span>
+      <span className="task-avatar-stack">
+        {task.assignees.map(person => <Avatar key={person.id} person={person.id === user.id ? user : person} />)}
+      </span>
       <span title="کامنت‌ها"><MessageSquare size={15} />{number.format(task.comment_count)}</span>
     </div>
   </button>;
@@ -220,7 +222,7 @@ function TaskDetails({ task, columns, candidates, suggestions, onUpdate }) {
         const text = new FormData(event.currentTarget).get('text').trim();
         if (text) send('/comments', 'POST', { text });
       }}>
-        <label>کامنت جدید<textarea name="text" rows={2} maxLength={2000} required /></label>
+        <label>کامنت جدید<textarea className="task-comment-input" name="text" rows={2} maxLength={2000} required /></label>
         <div><button className="button primary" disabled={busy}><MessageSquare size={15} />ارسال کامنت</button></div>
       </form>}
     </section>
@@ -235,11 +237,85 @@ function OpenTask({ id, columns, candidates, suggestions, onUpdate }) {
     onUpdate={item => { setUpdated(item); onUpdate(); }} />}</Resource>;
 }
 
-export default function Tasks() {
-  const [offset, setOffset] = useState(0);
+function ColumnTasks({ column, renderCard, onExpire }) {
+  const [state, setState] = useState({ items: [], cursor: null, total: 0 });
+  const [busy, setBusy] = useState(true);
+  const [error, setError] = useState('');
+  const pending = useRef(false);
+  const mounted = useRef(false);
+  const generation = useRef(0);
+
+  async function load(before) {
+    if (pending.current) return;
+    const request = generation.current;
+    pending.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      const query = { column_id: column.id, limit: 5, before };
+      const data = await liveApi('/tasks', { query });
+      if (!mounted.current || request !== generation.current) return;
+      setState(previous => ({
+        items: before ? [...new Map([...previous.items, ...data.items].map(item => [item.id, item])).values()] : data.items,
+        cursor: data.next_cursor, total: data.total ?? previous.total,
+      }));
+    } catch (failure) {
+      if (mounted.current && request === generation.current) setError(failure.message);
+    } finally {
+      if (mounted.current && request === generation.current) {
+        pending.current = false;
+        setBusy(false);
+      }
+    }
+  }
+
+  useEffect(() => {
+    generation.current += 1;
+    mounted.current = true;
+    pending.current = false;
+    load(null);
+    return () => { mounted.current = false; };
+  }, [column.id]);
+
+  useEffect(() => {
+    const deadlines = state.items.filter(task => task.closed_at).map(task => ({
+      id: task.id, until: Date.parse(task.closed_at) + 86_400_000,
+    }));
+    if (!deadlines.length) return;
+    const next = Math.min(...deadlines.map(item => item.until));
+    const timer = window.setTimeout(() => {
+      const expired = new Set(deadlines.filter(item => item.until <= Date.now()).map(item => item.id));
+      setState(previous => ({
+        ...previous, items: previous.items.filter(task => !expired.has(task.id)),
+        total: Math.max(0, previous.total - expired.size),
+      }));
+      onExpire(expired);
+    }, Math.max(100, next - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [state.items, onExpire]);
+
+  return <>
+    <header><h2>{column.id === 'done' ? <Check size={17} /> : <Circle size={14} />}{column.title}</h2>
+      <span>{number.format(state.total)}</span></header>
+    <div className="kanban-scroll" tabIndex={0} aria-label={`تسک‌های ${column.title}`}
+      onScroll={event => {
+        const { scrollHeight, scrollTop, clientHeight } = event.currentTarget;
+        if (state.cursor && !error && scrollHeight - scrollTop - clientHeight < 64) load(state.cursor);
+      }}>
+      {state.items.map(renderCard)}
+      {busy && <p className="kanban-empty" role="status">در حال بارگذاری…</p>}
+      {error && <p className="notice error" role="alert">{error}</p>}
+      {!busy && !error && state.items.length === 0 && <p className="kanban-empty">تسکی ندارد</p>}
+      {!busy && (state.cursor || error) && <button className="button" type="button"
+        onClick={() => load(state.cursor)}>{error ? 'تلاش دوباره' : 'تسک‌های بیشتر'}</button>}
+    </div>
+  </>;
+}
+
+export default function Tasks({ user }) {
   const [revision, setRevision] = useState(0);
   const [selected, setSelected] = useState(null);
-  const page = useResource('/tasks', { offset }, revision, liveApi);
+  const page = useResource('/tasks', { metadata_only: true }, revision, liveApi);
   const [openPage, setOpenPage] = useState(null);
   const dragging = useRef(null);
   const [dragSource, setDragSource] = useState(null);
@@ -248,18 +324,7 @@ export default function Tasks() {
   const [moveError, setMoveError] = useState('');
   const refresh = () => setRevision(value => value + 1);
   const close = () => setSelected(null);
-  useEffect(() => {
-    const deadlines = (page.data?.items ?? []).filter(task => task.closed_at).map(task => ({
-      id: task.id, until: Date.parse(task.closed_at) + 86_400_000,
-    }));
-    if (!deadlines.length) return;
-    const next = Math.min(...deadlines.map(item => item.until));
-    const timer = window.setTimeout(() => {
-      setSelected(current => deadlines.some(item => item.id === current?.id && item.until <= Date.now()) ? null : current);
-      setRevision(value => value + 1);
-    }, Math.max(250, next - Date.now()));
-    return () => window.clearTimeout(timer);
-  }, [page.data]);
+  const expire = expired => setSelected(current => expired.has(current?.id) ? null : current);
 
   function endDrag() {
     dragging.current = null;
@@ -299,7 +364,6 @@ export default function Tasks() {
       </div>
       <div className="kanban" role="region" aria-label="تابلوی کانبان" tabIndex={0}>
         {data.columns.map(column => {
-          const tasks = data.items.filter(task => task.column_id === column.id);
           return <section className={`kanban-column ${target === column.id ? 'is-drop-target' : ''}`}
             key={column.id} aria-label={column.title}
             onDragOver={event => {
@@ -313,29 +377,26 @@ export default function Tasks() {
               if (!event.currentTarget.contains(event.relatedTarget)) setTarget(current => current === column.id ? null : current);
             }}
             onDrop={event => drop(event, column.id)}>
-            <header><h2>{column.id === 'done' ? <Check size={17} /> : <Circle size={14} />}{column.title}</h2>
-              <span>{number.format(tasks.length)}</span></header>
-            {tasks.map(task => <TaskCard key={task.id} task={task} draggable={task.can_move && !moving}
-              onDragStart={event => {
-                dragging.current = task;
-                setDragSource(task.column_id);
-                event.dataTransfer.effectAllowed = 'move';
-                event.dataTransfer.setData('text/plain', task.id);
-              }}
-              onDragEnd={endDrag} onOpen={() => {
-              if (dragSource || moving) return;
-              setOpenPage(data);
-              setSelected(task);
-            }} />)}
-            {!tasks.length && <p className="kanban-empty">تسکی ندارد</p>}
+            <ColumnTasks key={revision} column={column} onExpire={expire} renderCard={task =>
+              <TaskCard key={task.id} task={task} user={user} draggable={task.can_move && !moving}
+                onDragStart={event => {
+                  dragging.current = task;
+                  setDragSource(task.column_id);
+                  event.dataTransfer.effectAllowed = 'move';
+                  event.dataTransfer.setData('text/plain', task.id);
+                }}
+                onDragEnd={endDrag} onOpen={() => {
+                  if (dragSource || moving) return;
+                  setOpenPage(data);
+                  setSelected(task);
+                }} />} />
           </section>;
         })}
       </div>
-      <Pagination page={data} onOffset={setOffset} />
     </>}</Resource>
     {selected && <TaskDialog title={selected === 'new' ? 'تسک جدید' : selected.title} close={close}>
       {selected === 'new' ? <NewTask candidates={openPage.assignees} suggestions={openPage.tag_suggestions} onSave={() => {
-        close(); setOffset(0); refresh();
+        close(); refresh();
       }} /> : <OpenTask id={selected.id} columns={openPage.columns.filter(column => selected.move_columns.includes(column.id))} candidates={openPage.assignees} suggestions={openPage.tag_suggestions} onUpdate={refresh} />}
     </TaskDialog>}
   </div>;

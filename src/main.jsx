@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import '@fontsource-variable/vazirmatn';
 import Overview from './Overview.jsx';
+import AvatarUpload from './Avatar.jsx';
 import Tasks, { TaskColumns } from './Tasks.jsx';
 import Users, { canAccess, Login, roleLabels } from './Access.jsx';
 import { liveApi } from './api.js';
@@ -168,6 +169,7 @@ function Workspace({ user, themeControl, setUser, endSession }) {
           <strong>{title}</strong>
         </div>
         <div className="top-actions">
+          <AvatarUpload user={user} onSave={setUser} />
           <div className="session-label"><strong>{user.name}</strong><small>{roleLabels[user.role]}</small></div>
           {themeControl}
           <button className="icon-button" type="button" aria-label="خروج" title="خروج" disabled={logout.pending} onClick={signOut}><LogOut size={18} /></button>
@@ -194,7 +196,7 @@ function Workspace({ user, themeControl, setUser, endSession }) {
         {route === 'system' && <System />}
         {route === 'device-health' && <DeviceHealth user={user} canWrite={write && user.role !== 'client'} />}
         {route === 'users' && <Users user={user} />}
-        {route === 'tasks' && <Tasks />}
+        {route === 'tasks' && <Tasks user={user} />}
         {route === 'task-columns' && <TaskColumns canWrite={write} />}
       </main>
     </div>
