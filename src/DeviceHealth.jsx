@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Activity, ChevronLeft, Cpu, HardDrive, Laptop, MemoryStick, Monitor, Plus, Search, Server, TriangleAlert, UserRound, X } from 'lucide-react';
-import { Badge, number } from './ui.jsx';
-import { deviceStorageKey, deviceTypes, forecastWarningThreshold, loadDevices, normalizeDeviceIp } from './deviceHealth.js';
+import { Activity, ChevronLeft, Cpu, HardDrive, Laptop, MemoryStick, Monitor, Search, Server, TriangleAlert, UserRound, X } from 'lucide-react';
+import { Badge, number, Pagination, Resource, useResource } from './ui.jsx';
+import { liveApi } from './api.js';
+import SystemFields, { systemFields, systemValues } from './SystemFields.jsx';
+import { deviceTypes, forecastWarningThreshold, loadDevices, mockDevice, normalizeDeviceIp, resourceTone } from './deviceHealth.js';
 
 const icons = { desktop: Monitor, laptop: Laptop, server: Server };
 const metrics = [
@@ -9,15 +11,8 @@ const metrics = [
   ['ram', 'حافظه', MemoryStick],
   ['disk', 'فضای دیسک', HardDrive],
 ];
-const specifications = [
-  ['os', 'سیستم‌عامل'], ['processor', 'مدل پردازنده'], ['memory', 'ظرفیت حافظه'], ['storage', 'ظرفیت دیسک'],
-];
 const percent = new Intl.NumberFormat('fa-IR', { style: 'percent' });
 const unset = 'ثبت نشده';
-const fields = [
-  ['name', 'نام سیستم'], ['ip', 'نشانی IP'], ['user', 'نام کاربر'], ['role', 'سمت'], ['access', 'دسترسی‌ها'],
-  ...specifications,
-];
 
 function DeviceDialog({ title, onClose, children }) {
   const dialog = useRef(null);
@@ -31,70 +26,39 @@ function DeviceDialog({ title, onClose, children }) {
   </dialog>;
 }
 
-function DeviceForm({ device, devices, onSave }) {
-  const [online, setOnline] = useState(device?.online ?? true);
+function DeviceForm({ device, onSave }) {
   const [error, setError] = useState('');
-  function submit(event) {
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event) {
     event.preventDefault();
-    const values = Object.fromEntries([...new FormData(event.currentTarget)].map(([key, value]) => [key, value.trim()]));
-    const ip = normalizeDeviceIp(values.ip);
-    if (!values.name) return setError('نام سیستم را وارد کنید.');
-    if (!ip) return setError('یک نشانی معتبر IPv4 یا IPv6 وارد کنید.');
-    if (devices.some(item => item.id !== device?.id && item.ip === ip)) return setError('این IP قبلاً به یک سیستم متصل شده است.');
-    const reading = value => online && value ? Number(value) : null;
-    const readings = Object.fromEntries(metrics.map(([key]) => [key, reading(values[key])]));
-    const forecast = Object.fromEntries(metrics.map(([key]) => {
-      const input = `forecast-${key}`;
-      const prediction = reading(values[input]);
-      delete values[input];
-      return [key, prediction];
-    }));
-    onSave({ ...values, ...readings, forecast, online, ip, id: device?.id ?? crypto.getRandomValues(new Uint32Array(4)).join('-') });
+    setError('');
+    setBusy(true);
+    try {
+      await liveApi('/device-health/' + device.id, {
+        method: 'PATCH', body: systemValues(Object.fromEntries(new FormData(event.currentTarget))),
+      });
+      onSave();
+    } catch (failure) {
+      setError(failure.status === 422 ? 'نشانی IP، نشانی MAC یا آستانه معتبر نیست.' : failure.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
-  return <form className="device-form" onSubmit={submit}>
-    <fieldset><legend>هویت دستگاه</legend>
-      {fields.slice(0, 2).map(([key, label]) => <label key={key}>{label}
-        <input name={key} dir={key === 'ip' ? 'ltr' : undefined} defaultValue={device?.[key]} required maxLength={100} />
-      </label>)}
-      <label>نوع سیستم <select aria-label="نوع سیستم" name="type" defaultValue={device?.type ?? 'desktop'}>
-        {Object.entries(deviceTypes).map(([key, label]) => <option value={key} key={key}>{label}</option>)}
-      </select></label>
-      <label>وضعیت <select aria-label="وضعیت" value={online ? 'online' : 'offline'} onChange={event => setOnline(event.target.value === 'online')}>
-        <option value="online">روشن</option><option value="offline">خاموش</option>
-      </select></label>
-    </fieldset>
-    <fieldset><legend>کاربر جاری</legend>
-      {fields.slice(2, 5).map(([key, label]) => <label key={key}>{label}
-        <input name={key} defaultValue={device?.[key]} maxLength={key === 'access' ? 300 : 100} />
-      </label>)}
-    </fieldset>
-    <fieldset><legend>مشخصات سیستم</legend>
-      {specifications.map(([key, label]) => <label key={key}>{label}
-        <input name={key} dir="auto" defaultValue={device?.[key]} maxLength={100} />
-      </label>)}
-    </fieldset>
-    <fieldset disabled={!online}><legend>مصرف نمونهٔ منابع</legend>
-      {metrics.map(([key, label]) => <label key={key}>{label} (درصد)
-        <input name={key} type="number" min="0" max="100" step="1" defaultValue={device?.[key] ?? ''} />
-      </label>)}
-    </fieldset>
-    <fieldset disabled={!online}><legend>پیش‌بینی مصرف (ماک)</legend>
-      {metrics.map(([key, label]) => <label key={key}>پیش‌بینی {label} (درصد)
-        <input name={`forecast-${key}`} type="number" min="0" max="100" step="1" defaultValue={device?.forecast?.[key] ?? ''} />
-      </label>)}
-    </fieldset>
+  return <form className="account-form user-editor" onSubmit={submit}>
+    <SystemFields profile={device} />
     {error && <p className="notice error" role="alert">{error}</p>}
-    <button className="button primary" type="submit">ذخیرهٔ سیستم</button>
+    <button className="button primary" disabled={busy}>ذخیرهٔ سیستم</button>
   </form>;
 }
 
 function DeviceCard({ device, onDetails, onUser }) {
-  const Icon = icons[device.type];
+  const Icon = icons[device.type] ?? Monitor;
   return <article className="card device-card">
     <div className="device-identity">
       <span className="device-icon"><Icon size={25} aria-hidden="true" /></span>
-      <div><h2>{device.name}</h2><bdi dir="ltr" className="mono">{device.ip}</bdi><small>{deviceTypes[device.type]}</small></div>
+      <div><h2>{device.name}</h2><bdi dir="ltr" className="mono">{device.ip || device.mac || '—'}</bdi><small>{deviceTypes[device.type]}</small></div>
       <Badge tone={device.online ? 'green' : 'muted'}>{device.online ? 'روشن' : 'خاموش'}</Badge>
     </div>
     <div className="device-metrics">
@@ -103,11 +67,14 @@ function DeviceCard({ device, onDetails, onUser }) {
         const forecast = device.online ? device.forecast?.[key] : null;
         const difference = value != null && forecast != null ? Math.abs(value - forecast) : null;
         const warning = difference != null && difference >= forecastWarningThreshold;
+        const tone = resourceTone(value, device.threshold);
         return <div key={key}>
           <div className="device-metric-label"><span><Icon size={15} aria-hidden="true" />{label}</span>
-            <strong>{value == null ? '—' : percent.format(value / 100)}</strong></div>
+            <strong className={tone}>{value == null ? '—' : percent.format(value / 100)}</strong></div>
           <div className="device-meter">
-            {value != null && <meter className={value >= 85 ? 'device-high' : undefined} aria-label={label} min={0} max={100} value={value} />}
+            {value != null && <div className={'device-meter-fill ' + tone} role="meter" aria-label={label}
+              aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} style={{ width: `${value}%` }}
+              title={tone === 'red' ? 'بحرانی' : tone === 'amber' ? 'بالاتر از آستانه' : 'عادی'} />}
             {forecast != null && <span className="device-forecast-marker" aria-hidden="true"
               style={{ '--forecast-position': `${forecast}%` }} />}
           </div>
@@ -118,6 +85,7 @@ function DeviceCard({ device, onDetails, onUser }) {
         </div>;
       })}
     </div>
+    <small>آستانهٔ مصرف {percent.format(device.threshold / 100)}</small>
     <div className="device-card-actions">
       <button className="button" onClick={onUser}><UserRound size={16} />{device.user || 'کاربر جاری'}</button>
       <button className="text-link device-details-link" onClick={onDetails}>جزئیات سیستم <ChevronLeft size={15} /></button>
@@ -125,78 +93,90 @@ function DeviceCard({ device, onDetails, onUser }) {
   </article>;
 }
 
-export default function DeviceHealth({ canWrite, deviceId }) {
-  const [allDevices, setDevices] = useState(loadDevices);
-  const devices = deviceId ? allDevices.filter(device => device.id === deviceId) : allDevices;
+export default function DeviceHealth({ user, canWrite }) {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
+  const [offset, setOffset] = useState(0);
+  const [revision, setRevision] = useState(0);
   const [dialog, setDialog] = useState(null);
   const [feedback, setFeedback] = useState('');
+  const result = useResource('/device-health', { offset }, revision, liveApi);
   const close = () => setDialog(null);
-  const onlineCount = devices.filter(device => device.online).length;
   const search = query.trim().toLowerCase();
   const searchedIp = normalizeDeviceIp(search);
-  const visible = devices.filter(device =>
-    (status === 'all' || device.online === (status === 'online')) &&
-    (device.ip === searchedIp || [device.name, device.ip, device.user]
-      .some(value => (value ?? '').toLowerCase().includes(search))));
 
-  function save(device) {
-    const next = devices.some(item => item.id === device.id)
-      ? devices.map(item => item.id === device.id ? device : item)
-      : [...devices, device];
-    setDevices(next);
-    try {
-      localStorage.setItem(deviceStorageKey, JSON.stringify(next));
-      setFeedback('سیستم ذخیره شد.');
-    } catch {
-      setFeedback('سیستم برای این نشست ثبت شد. ذخیره‌سازی مرورگر در دسترس نیست.');
-    }
+  function saved() {
     close();
+    setFeedback('مشخصات سیستم ذخیره شد.');
+    setRevision(value => value + 1);
   }
 
   return <div className="device-page">
     <div className="device-toolbar">
       <label className="device-search"><Search size={17} aria-hidden="true" />
-        <input aria-label="جست‌وجوی سیستم" placeholder="جست‌وجو با نام، IP یا کاربر" value={query} onChange={event => setQuery(event.target.value)} />
+        <input aria-label="جست‌وجوی این صفحه" placeholder="جست‌وجوی این صفحه با نام، شاخه، IP یا MAC"
+          value={query} onChange={event => setQuery(event.target.value)} />
       </label>
       <select aria-label="فیلتر وضعیت" value={status} onChange={event => setStatus(event.target.value)}>
         <option value="all">همهٔ وضعیت‌ها</option><option value="online">روشن</option><option value="offline">خاموش</option>
       </select>
-      {canWrite && <button className="button primary" onClick={() => setDialog({ mode: 'form' })}><Plus size={17} />ثبت سیستم</button>}
-    </div>
-    <div className="device-summary">
-      {[[Monitor, 'کل سیستم‌ها', devices.length], [Activity, 'روشن', onlineCount], [Monitor, 'خاموش', devices.length - onlineCount]]
-        .map(([Icon, label, count]) => <div className="card" key={label}><Icon size={20} aria-hidden="true" />
-          <span>{label}</span><strong>{number.format(count)}</strong></div>)}
     </div>
     {feedback && <p role="status" className="notice device-feedback">{feedback}</p>}
-    <p className="device-forecast-legend"><span>نشانگر زرد</span> پیش‌بینی مصرف است. اختلاف {number.format(forecastWarningThreshold)} واحد درصد یا بیشتر هشدار دارد.</p>
-    <div className="device-grid">
-      {visible.map(device => <DeviceCard key={device.id} device={device}
-        onDetails={() => setDialog({ mode: 'details', device })}
-        onUser={() => setDialog({ mode: 'user', device })} />)}
-    </div>
-    {visible.length === 0 && <p className="notice" role="status">{deviceId && !devices.length ? 'سیستم متصل در دادهٔ ماک این مرورگر موجود نیست.' : 'سیستمی با این فیلترها پیدا نشد.'}</p>}
-    {canWrite && dialog?.mode === 'form' && <DeviceDialog title={dialog.device ? 'ویرایش سیستم' : 'ثبت سیستم جدید'} onClose={close}>
-      <DeviceForm device={dialog.device} devices={devices} onSave={save} />
+    <p className="device-forecast-legend">
+      مصرف ماک · <b className="green">عادی</b> تا آستانه · <b className="amber">زرد</b> بالاتر از آستانه ·
+      <b className="red"> قرمز</b> بیشتر از ۱۲۰٪ آستانه. نشانگر زرد باریک، پیش‌بینی مصرف است.
+    </p>
+    <Resource result={result}>{page => {
+      const legacy = loadDevices();
+      const devices = page.items.map(account => mockDevice(account, legacy));
+      const visible = devices.filter(device =>
+        (status === 'all' || device.online === (status === 'online')) &&
+        (device.ip === searchedIp || [device.name, device.ip, device.mac, device.user, device.branch]
+          .some(value => (value ?? '').toLowerCase().includes(search))));
+      const groups = new Map();
+      for (const device of visible) {
+        const branch = device.branchId ?? '';
+        if (!groups.has(branch)) groups.set(branch, []);
+        groups.get(branch).push(device);
+      }
+      const online = devices.filter(device => device.online).length;
+      return <>
+        <div className="device-summary">
+          {[[Monitor, 'کل سیستم‌ها', page.total], [Activity, 'روشن در این صفحه', online],
+            [Monitor, 'خاموش در این صفحه', devices.length - online]]
+            .map(([Icon, label, count]) => <div className="card" key={label}><Icon size={20} aria-hidden="true" />
+              <span>{label}</span><strong>{number.format(count)}</strong></div>)}
+        </div>
+        {visible.length === 0 && <p className="notice" role="status">سیستمی برای نمایش پیدا نشد.</p>}
+        {[...groups].map(([id, rows]) => <section className="device-branch" key={id}>
+          {(user.role !== 'client' || rows[0].branch) && <h2>{rows[0].branch || 'شاخهٔ بدون نام'}</h2>}
+          <div className="device-grid">{rows.map(device => <DeviceCard key={device.id} device={device}
+            onDetails={() => setDialog({ mode: 'details', device })}
+            onUser={() => setDialog({ mode: 'user', device })} />)}</div>
+        </section>)}
+        <Pagination page={page} onOffset={setOffset} />
+      </>;
+    }}</Resource>
+    {canWrite && dialog?.mode === 'form' && <DeviceDialog title="ویرایش سیستم" onClose={close}>
+      <DeviceForm device={dialog.device} onSave={saved} />
     </DeviceDialog>}
     {dialog?.mode === 'details' && <DeviceDialog title={dialog.device.name} onClose={close}>
       <dl className="device-detail-list">
-        <div><dt>نشانی IP</dt><dd><bdi dir="ltr" className="mono">{dialog.device.ip}</bdi></dd></div>
         <div><dt>نوع سیستم</dt><dd>{deviceTypes[dialog.device.type]}</dd></div>
-        <div><dt>وضعیت</dt><dd>{dialog.device.online ? 'روشن' : 'خاموش'}</dd></div>
-        {specifications.map(([key, label]) => <div key={key}><dt>{label}</dt><dd><bdi>{dialog.device[key] || unset}</bdi></dd></div>)}
+        <div><dt>وضعیت ماک</dt><dd>{dialog.device.online ? 'روشن' : 'خاموش'}</dd></div>
+        {systemFields.slice(1).map(([key, label]) => <div key={key}><dt>{label}</dt>
+          <dd><bdi>{dialog.device[key] || unset}</bdi></dd></div>)}
       </dl>
       <div className="device-dialog-actions">
         <button className="button" onClick={() => setDialog({ ...dialog, mode: 'user' })}>کاربر جاری</button>
         {canWrite && <button className="button primary" onClick={() => setDialog({ ...dialog, mode: 'form' })}>ویرایش سیستم</button>}
       </div>
     </DeviceDialog>}
-    {dialog?.mode === 'user' && <DeviceDialog title="کاربر جاری سیستم" onClose={close}>
+    {dialog?.mode === 'user' && <DeviceDialog title="کاربر سیستم" onClose={close}>
       <dl className="device-detail-list">
-        <div><dt>سیستم</dt><dd>{dialog.device.name}</dd></div>
-        {fields.slice(2, 5).map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{dialog.device[key] || unset}</dd></div>)}
+        <div><dt>نام</dt><dd>{dialog.device.user}</dd></div>
+        <div><dt>نام کاربری</dt><dd><bdi>{dialog.device.username}</bdi></dd></div>
+        <div><dt>شاخه</dt><dd>{dialog.device.branch || unset}</dd></div>
       </dl>
     </DeviceDialog>}
   </div>;

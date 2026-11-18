@@ -189,7 +189,7 @@ function Workspace({ user, themeControl, setUser, endSession }) {
         {route === 'analytics' && <Analytics showCurrentModel={permitted('current-model')} />}
         {route === 'current-model' && <CurrentModel canWrite={write} showAnalytics={permitted('analytics')} />}
         {route === 'system' && <System />}
-        {route === 'device-health' && <DeviceHealth canWrite={write && user.role !== 'client'} deviceId={user.role === 'client' ? user.device_id : null} />}
+        {route === 'device-health' && <DeviceHealth user={user} canWrite={write && user.role !== 'client'} />}
         {route === 'users' && <Users user={user} />}
       </main>
     </div>

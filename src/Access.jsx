@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { KeyRound, LogIn, Shield, ShieldCheck, UserRound, UserRoundPlus, UserRoundX } from 'lucide-react';
+import { Building2, LogIn, Pencil, Shield, ShieldCheck, UserRound, UserRoundPlus, UserRoundX } from 'lucide-react';
 import { liveApi } from './api.js';
-import { loadDevices } from './deviceHealth.js';
+import SystemFields, { systemValues } from './SystemFields.jsx';
 import { Badge, Card, Pagination, Resource, Table, useResource } from './ui.jsx';
 
 export const roleLabels = { client: 'کلاینت', admin: 'ادمین', manager: 'مدیریت کل' };
@@ -68,6 +68,35 @@ function getPermissions(values) {
     .map(([key, value]) => [key.slice(6), value]));
 }
 
+function BranchForm({ user, onSave }) {
+  const [branch, setBranch] = useState(user.branch ?? '');
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState({});
+  async function save(event) {
+    event.preventDefault();
+    setFeedback({});
+    setBusy(true);
+    try {
+      const updated = await liveApi('/auth/branch', { method: 'PATCH', body: { branch: branch.trim() } });
+      setBranch(updated.branch);
+      onSave();
+      setFeedback({ message: 'نام شاخه ذخیره شد.' });
+    } catch (error) {
+      setFeedback({ error: error.message });
+    } finally {
+      setBusy(false);
+    }
+  }
+  return <Card title="شاخهٔ شما">
+    <form className="account-form user-editor" onSubmit={save}>
+      <label>نام شاخه<input value={branch} onChange={event => setBranch(event.target.value)} required maxLength={100} /></label>
+      {feedback.error && <p className="notice error" role="alert">{feedback.error}</p>}
+      {feedback.message && <p className="notice" role="status">{feedback.message}</p>}
+      <div><button className="button" disabled={busy}><Building2 size={16} />ذخیرهٔ شاخه</button></div>
+    </form>
+  </Card>;
+}
+
 export default function Users({ user }) {
   const [offset, setOffset] = useState(0);
   const [revision, setRevision] = useState(0);
@@ -77,7 +106,6 @@ export default function Users({ user }) {
   const manager = user.role === 'manager';
   const write = canAccess(user, 'users', true);
   const newRole = manager ? 'admin' : 'client';
-  const devices = loadDevices();
   const list = useResource('/users', { offset }, revision, liveApi);
 
   async function update(path, method, body) {
@@ -99,27 +127,33 @@ export default function Users({ user }) {
   function save(event) {
     event.preventDefault();
     const values = Object.fromEntries(new FormData(event.currentTarget));
-    if (editor !== 'new') {
-      update('/users/' + editor.id, 'PATCH', { permissions: getPermissions(values) });
-      return;
-    }
-    const { username, name, password, device_id } = values;
-    update('/users', 'POST', { username, name, password,
-      ...(manager ? { permissions: getPermissions(values) } : { device_id }) });
+    const { username, name, password, branch } = values;
+    const role = editor === 'new' ? newRole : editor.role;
+    const body = {
+      username: username.trim(), name: name.trim(),
+      ...(role === 'client' ? { system: systemValues(values) } : {}),
+      ...(manager ? { permissions: getPermissions(values) } : {}),
+      ...(role === 'admin' && branch.trim() ? { branch: branch.trim() } : {}),
+    };
+    if (editor === 'new') update('/users', 'POST', { ...body, password });
+    else update('/users/' + editor.id, 'PATCH', body);
   }
 
   const columns = [
     { key: 'name', label: 'کاربر', render: row => <div className="account-identity"><UserRound size={17} />
       <div><strong>{row.name}</strong><small className="row-detail"><bdi dir="ltr">{row.username}</bdi></small></div></div> },
     { key: 'role', label: 'نقش', render: row => roleLabels[row.role] },
-    { key: 'device', label: 'سیستم', render: row => row.device_id
-      ? devices.find(device => device.id === row.device_id)?.name ?? <bdi>{row.device_id}</bdi> : '—' },
+    { key: 'branch', label: 'شاخه', render: row => row.branch || '—' },
+    { key: 'device', label: 'سیستم', render: row => row.role === 'client' ? <div>
+      <span>{row.system?.name || row.name}</span>
+      {(row.system?.ip || row.system?.mac) && <small className="row-detail"><bdi dir="ltr">{row.system.ip || row.system.mac}</bdi></small>}
+    </div> : '—' },
     { key: 'active', label: 'وضعیت', render: row => <Badge tone={row.active ? 'green' : 'muted'}>{row.active ? 'فعال' : 'غیرفعال'}</Badge> },
     ...(write ? [{ key: 'actions', label: 'عملیات', render: row => <div className="account-actions">
-      {manager && <button className="button" disabled={busy} onClick={() => {
+      <button className="button" disabled={busy} onClick={() => {
         setFeedback({});
         setEditor(row);
-      }}><KeyRound size={15} />دسترسی‌ها</button>}
+      }}><Pencil size={15} />ویرایش کاربر</button>
       <button className={`button ${row.active ? 'account-disable' : ''}`} disabled={busy} onClick={() => {
         if (row.active && !window.confirm(`حساب «${row.name}» غیرفعال شود؟`)) return;
         update('/users/' + row.id, 'PATCH', { active: !row.active });
@@ -127,7 +161,9 @@ export default function Users({ user }) {
     </div> }] : []),
   ];
 
+  const editorRole = editor === 'new' ? newRole : editor?.role;
   return <div className="stack">
+    {!manager && <BranchForm user={user} onSave={() => setRevision(value => value + 1)} />}
     <Card title="حساب‌های کاربری" action={write && <button className="button primary" disabled={busy}
       onClick={() => { setFeedback({}); setEditor('new'); }}><UserRoundPlus size={17} />تعریف {roleLabels[newRole]}</button>}>
       {feedback.error && !editor && <p className="notice error" role="alert">{feedback.error}</p>}
@@ -135,19 +171,18 @@ export default function Users({ user }) {
       <Resource result={list}>{data => <><Table columns={columns} rows={data.items} empty="حسابی ثبت نشده است." />
         <Pagination page={data} onOffset={setOffset} /></>}</Resource>
     </Card>
-    {editor && <Card title={editor === 'new' ? 'تعریف ' + roleLabels[newRole] : 'دسترسی‌های ' + editor.name}>
+    {editor && <Card title={editor === 'new' ? 'تعریف ' + roleLabels[newRole] : 'ویرایش ' + editor.name}>
       <form key={editor.id ?? 'new'} className="account-form user-editor" onSubmit={save}>
-        {editor === 'new' && <div className="account-fields">
-          <label>نام نمایشی<input name="name" required maxLength={100} /></label>
-          <label>نام کاربری<input name="username" dir="ltr" autoComplete="off" required minLength={3} maxLength={64} pattern="[A-Za-z0-9_.\\-]+" /></label>
-          <label>رمز عبور<input name="password" dir="ltr" type="password" autoComplete="new-password" required minLength={12} maxLength={128} />
-            <small>حداقل ۱۲ نویسه</small></label>
-          {!manager && <label>سیستم سلامت<select aria-label="سیستم سلامت" name="device_id" required defaultValue="">
-            <option value="" disabled>انتخاب سیستم</option>
-            {devices.map(device => <option key={device.id} value={device.id}>{device.name} · {device.ip}</option>)}
-          </select></label>}
-        </div>}
-        {manager && <Permissions role={editor === 'new' ? newRole : editor.role} selected={editor.permissions} />}
+        <div className="account-fields">
+          <label>نام نمایشی<input name="name" required maxLength={100} defaultValue={editor.name ?? ''} /></label>
+          <label>نام کاربری<input name="username" dir="ltr" autoComplete="off" required minLength={3} maxLength={64}
+            pattern="[A-Za-z0-9_.\-]+" defaultValue={editor.username ?? ''} /></label>
+          {editor === 'new' && <label>رمز عبور<input name="password" dir="ltr" type="password" autoComplete="new-password"
+            required minLength={12} maxLength={128} /><small>حداقل ۱۲ نویسه</small></label>}
+          {editorRole === 'admin' && <label>نام شاخه<input name="branch" defaultValue={editor.branch ?? ''} maxLength={100} /></label>}
+        </div>
+        {editorRole === 'client' && <SystemFields profile={editor.system} />}
+        {manager && <Permissions role={editorRole} selected={editor.permissions} />}
         {feedback.error && <p className="notice error" role="alert">{feedback.error}</p>}
         <div className="account-actions"><button className="button primary" disabled={busy}>ذخیره</button>
           <button type="button" className="button" disabled={busy} onClick={() => { setEditor(null); setFeedback({}); }}>انصراف</button></div>

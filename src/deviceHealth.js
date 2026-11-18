@@ -1,5 +1,5 @@
 export const deviceStorageKey = 'siem-device-health-v1';
-export const deviceTypes = { desktop: 'رایانهٔ رومیزی', laptop: 'لپ‌تاپ', server: 'سرور' };
+export const deviceTypes = { desktop: 'رایانهٔ رومیزی', laptop: 'لپ‌تاپ', server: 'سرور', other: 'سایر' };
 export const forecastWarningThreshold = 20;
 
 export function normalizeDeviceIp(input) {
@@ -39,4 +39,28 @@ export function loadDevices() {
     // The mock still works in memory when storage is unavailable.
   }
   return sampleDevices;
+}
+
+
+export function mockDevice(account, legacyDevices) {
+  const legacy = legacyDevices.find(device => device.id === account.device_id);
+  const seed = [...account.id].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 0);
+  const sample = legacy ?? {
+    online: seed % 5 !== 0, cpu: 35 + seed % 64, ram: 38 + (seed >>> 6) % 61, disk: 42 + (seed >>> 12) % 57,
+  };
+  const profile = account.system ?? legacy ?? {};
+  return {
+    ...profile, id: account.id, branch: account.branch, branchId: account.branch_id,
+    username: account.username, user: account.name, name: profile.name || account.name,
+    type: profile.type ?? 'desktop', threshold: profile.threshold ?? 70,
+    online: account.active && sample.online, cpu: sample.cpu, ram: sample.ram, disk: sample.disk,
+    forecast: sample.forecast ?? { cpu: Math.min(sample.cpu + 9, 100), ram: Math.min(sample.ram + 4, 100),
+      disk: Math.min(sample.disk + 2, 100) },
+  };
+}
+
+export function resourceTone(value, threshold) {
+  if (value == null) return '';
+  if (value * 5 > threshold * 6) return 'red';
+  return value > threshold ? 'amber' : 'green';
 }
