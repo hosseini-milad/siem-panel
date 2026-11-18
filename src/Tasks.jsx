@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Circle, LayoutGrid, MessageSquare, Pencil, Plus, RefreshCw, UsersRound, X } from 'lucide-react';
+import { CalendarDays, Check, Circle, Hash, LayoutGrid, MessageSquare, Pencil, Plus, RefreshCw, Star, UserRound, UsersRound, X } from 'lucide-react';
 import { liveApi } from './api.js';
 import { Badge, Card, number, Pagination, Resource, Table, useResource } from './ui.jsx';
 
@@ -31,7 +31,7 @@ function PeopleFields({ candidates, selected, name, label }) {
       <input name={name} type="checkbox" value={person.id} defaultChecked={selected.includes(person.id)} />
       <span>{person.name} · <bdi>{person.username}</bdi></span>
     </label>)}
-    {!candidates.length && <small>حساب فعالی با دسترسی به تسک‌ها در این محدوده وجود ندارد.</small>}
+    {!candidates.length && <small>حساب فعالی در این محدوده وجود ندارد.</small>}
   </fieldset>;
 }
 
@@ -43,6 +43,44 @@ function AssignmentFields({ candidates, task }) {
     <PeopleFields candidates={candidates} selected={task?.assignees.map(item => item.id) ?? []}
       name="assignees" label="ارجاع به یک یا چند نفر" />
   </>;
+}
+
+function tagValues(value) {
+  return value.split(/[,،]/).map(tag => tag.trim()).filter(Boolean);
+}
+
+function TagField({ tags = [] }) {
+  return <label>تگ‌ها<input name="tags" placeholder="مثلاً طراحی، پیگیری" defaultValue={tags.join('، ')} maxLength={220} />
+    <small>حداکثر ۸ تگ با جداکنندهٔ ویرگول</small></label>;
+}
+
+function Tags({ tags }) {
+  if (!tags?.length) return null;
+  return <div className="task-tags">{tags.map(tag => <bdi key={tag}>{tag}</bdi>)}</div>;
+}
+
+function TaskCard({ task, onOpen }) {
+  const stars = Object.keys(priorities).indexOf(task.priority) + 1;
+  return <button className="kanban-card task-record-card" type="button" onClick={onOpen}>
+    <strong>{task.title}</strong>
+    <div className="task-record-meta">
+      <span><Hash size={15} />شمارهٔ تسک <bdi dir="ltr">{task.id.slice(0, 8)}</bdi></span>
+      <span><UserRound size={15} />ایجادکننده <bdi>{task.creator}</bdi></span>
+      <span><CalendarDays size={15} />تاریخ ایجاد <bdi>{date.format(new Date(task.created_at))}</bdi></span>
+      <span><Pencil size={15} />آخرین تغییردهنده <bdi>{task.updated_by ?? task.creator}</bdi></span>
+    </div>
+    <Tags tags={task.tags} />
+    <div className="task-record-footer">
+      <span className="task-stars" title={`اولویت ${priorities[task.priority][0]}`}>
+        <span className="task-star-label">{priorities[task.priority][0]}</span>
+        {Array.from({ length: 4 }, (_, index) =>
+          <Star key={index} size={14} className={index < stars ? 'is-filled' : ''} aria-hidden="true" />)}
+      </span>
+      <span title={task.assignees.map(person => person.name).join('، ')}><UsersRound size={15} />
+        <span>{number.format(task.assignees.length)}</span></span>
+      <span title="کامنت‌ها"><MessageSquare size={15} />{number.format(task.comment_count)}</span>
+    </div>
+  </button>;
 }
 
 function NewTask({ candidates, onSave }) {
@@ -61,7 +99,7 @@ function NewTask({ candidates, onSave }) {
     try {
       await liveApi('/tasks', { method: 'POST', body: {
         title: fields.get('title').trim(), description: fields.get('description').trim(),
-        priority: fields.get('priority'), assignees,
+        priority: fields.get('priority'), assignees, tags: tagValues(fields.get('tags')),
       } });
       onSave();
     } catch (failure) {
@@ -73,6 +111,7 @@ function NewTask({ candidates, onSave }) {
   return <form className="account-form user-editor" onSubmit={submit}>
     <label>عنوان<input name="title" required maxLength={120} /></label>
     <label>شرح<textarea name="description" rows={3} maxLength={4000} /></label>
+    <TagField />
     <AssignmentFields candidates={candidates} />
     {error && <p className="notice error" role="alert">{error}</p>}
     <div><button className="button primary" disabled={busy || !candidates.length}><Plus size={16} />ثبت تسک</button></div>
@@ -104,7 +143,7 @@ function TaskDetails({ task, columns, candidates, onUpdate }) {
       setError('بین ۱ تا ۲۰ نفر انتخاب کنید.');
       return;
     }
-    send('', 'PATCH', { priority: fields.get('priority'), assignees });
+    send('', 'PATCH', { priority: fields.get('priority'), assignees, tags: tagValues(fields.get('tags')) });
   }
 
   return <div className="task-detail">
@@ -112,6 +151,7 @@ function TaskDetails({ task, columns, candidates, onUpdate }) {
       <span>ثبت‌کننده {task.creator}</span>
       <span>{task.closed_at ? 'خاتمه ' : 'ثبت '}{date.format(new Date(task.closed_at ?? task.created_at))}</span>
     </div>
+    <Tags tags={task.tags} />
     {task.description && <p className="task-description">{task.description}</p>}
     <p className="task-people"><UsersRound size={17} />{task.assignees.map(person => person.name).join('، ')}</p>
     {task.can_move && <form className="account-form" key={task.revision} onSubmit={event => {
@@ -129,6 +169,7 @@ function TaskDetails({ task, columns, candidates, onUpdate }) {
       </div>
     </form>}
     {task.can_assign && <form className="account-form" key={'assignment-' + task.revision} onSubmit={assign}>
+      <TagField tags={task.tags} />
       <AssignmentFields candidates={candidates} task={task} />
       <div><button className="button" disabled={busy}>به‌روزرسانی ارجاع و اولویت</button></div>
     </form>}
@@ -167,6 +208,18 @@ function Board({ board }) {
   const [openPage, setOpenPage] = useState(null);
   const refresh = () => setRevision(value => value + 1);
   const close = () => setSelected(null);
+  useEffect(() => {
+    const deadlines = (page.data?.items ?? []).filter(task => task.closed_at).map(task => ({
+      id: task.id, until: Date.parse(task.closed_at) + 86_400_000,
+    }));
+    if (!deadlines.length) return;
+    const next = Math.min(...deadlines.map(item => item.until));
+    const timer = window.setTimeout(() => {
+      setSelected(current => deadlines.some(item => item.id === current?.id && item.until <= Date.now()) ? null : current);
+      setRevision(value => value + 1);
+    }, Math.max(250, next - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [page.data]);
 
   return <>
     <Resource result={page}>{data => <>
@@ -183,14 +236,10 @@ function Board({ board }) {
           return <section className="kanban-column" key={column.id} aria-label={column.title}>
             <header><h2>{column.id === 'done' ? <Check size={17} /> : <Circle size={14} />}{column.title}</h2>
               <span>{number.format(tasks.length)}</span></header>
-            {tasks.map(task => <button className="kanban-card" type="button" key={task.id} onClick={() => {
+            {tasks.map(task => <TaskCard key={task.id} task={task} onOpen={() => {
               setOpenPage(data);
               setSelected(task);
-            }}>
-              <strong>{task.title}</strong>
-              <div><Priority value={task.priority} /><span><MessageSquare size={14} />{number.format(task.comment_count)}</span></div>
-              <small><UsersRound size={14} />{task.assignees.map(person => person.name).join('، ')}</small>
-            </button>)}
+            }} />)}
             {!tasks.length && <p className="kanban-empty">تسکی ندارد</p>}
           </section>;
         })}

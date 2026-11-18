@@ -87,8 +87,8 @@ function Workspace({ user, themeControl, setUser, endSession }) {
   const [drawer, setDrawer] = useState(false);
   const [hours, setHours] = useState(24);
   const [logout, setLogout] = useState({ pending: false, error: '' });
-  const navigation = useResource('/system/navigation', {}, JSON.stringify(user.permissions), liveApi);
-  const menus = (navigation.data?.menus ?? []).filter(menu => canAccess(user, menu.id));
+  const navigation = useResource('/system/navigation', {}, JSON.stringify([user.permissions, user.task_access]), liveApi);
+  const menus = (navigation.data?.menus ?? []).filter(menu => canAccess(user, menu.id) || (menu.id === 'tasks' && user.task_access));
   const current = menus.find(menu => menu.id === requested) ?? menus[0];
   const route = current?.id;
   const title = current?.label ?? 'فضای کاری';

@@ -357,3 +357,18 @@ nav a.nav-child { margin-inline-start: 22px; }
 .task-thread article { padding: 8px 10px; background: var(--bg); border: 1px solid var(--stroke); border-radius: 8px; }
 .task-thread article p { margin-top: 4px; }
 .task-dialog .account-form textarea { width: 100%; resize: vertical; }
+
+.task-record-card { padding: 12px; }
+.task-record-card > strong { font-size: 14px; }
+.task-record-card > .task-record-meta { display: grid; gap: 5px; color: var(--muted); font-size: 11px; }
+.task-record-meta span { min-width: 0; }
+.task-tags { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+.task-tags bdi { background: #a0e6dd; color: #143b3a; border-radius: 999px; padding: 2px 8px;
+  overflow-wrap: anywhere; max-width: 100%; font-size: 11px; }
+.task-tags bdi:nth-child(3n + 2) { background: #ffd0e3; color: #622647; }
+.task-tags bdi:nth-child(3n) { background: #e2d9ff; color: #432e79; }
+.task-record-card > .task-tags { justify-content: flex-start; }
+.task-record-footer { padding-top: 7px; border-top: 1px solid var(--stroke); color: var(--muted); font-size: 11px; }
+.task-record-card .task-stars { gap: 2px; }
+.task-stars .is-filled { fill: var(--amber); color: var(--amber); }
+.task-star-label { margin-inline-end: 4px; }
