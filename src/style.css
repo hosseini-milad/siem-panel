@@ -327,3 +327,33 @@ nav a.nav-child { margin-inline-start: 22px; }
 .device-branch { display: grid; gap: 10px; }
 .device-branch > h2 { font-size: 15px; }
 .device-meter-fill { height: 100%; background: currentColor; border-radius: inherit; }
+
+.task-page, .task-detail, .task-thread { display: grid; gap: 12px; }
+.task-board-picker, .task-toolbar, .task-meta, .task-people { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.task-page .button.primary, .task-dialog .button.primary { color: white; background: var(--accent); }
+.kanban { display: grid; grid-auto-flow: column; grid-auto-columns: min(270px, 85vw); gap: 12px;
+  overflow-x: auto; padding: 2px 2px 12px; align-items: start; }
+.kanban-column { min-height: 210px; display: grid; align-content: start; gap: 8px; padding: 10px;
+  color: var(--text); background: var(--sidebar); border: 1px solid var(--stroke); border-radius: 12px; }
+.kanban-column > header, .kanban-card > div, .task-thread article > header {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.kanban-column h2, .task-thread h3 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 14px; }
+.kanban-column h2 svg { color: var(--purple); flex: none; }
+.kanban-column > header > span, .kanban-empty, .task-meta, .task-people { font-size: 12px; color: var(--muted); }
+.kanban-empty { padding: 14px 2px; }
+.kanban-card { display: grid; gap: 8px; padding: 10px; text-align: start; min-width: 0;
+  color: var(--text); background: var(--surface); border: 1px solid var(--stroke); border-radius: 9px; }
+.kanban-card:hover { background: var(--surface-hover); border-color: var(--purple); }
+.kanban-card strong, .kanban-card small, .task-detail { overflow-wrap: anywhere; }
+.kanban-card small, .kanban-card > div > span:not(.badge) { display: flex; gap: 5px; align-items: center; }
+.kanban-card svg, .task-people svg { flex: none; }
+.task-detail { padding: 0 16px; }
+.task-description, .task-thread article p { white-space: pre-wrap; }
+.task-assignees { display: grid; gap: 6px; max-height: 175px; overflow-y: auto; min-width: 0;
+  border: 1px solid var(--stroke); border-radius: 8px; }
+.task-assignees legend { font-size: 13px; }
+.account-form .task-checkbox { display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+.task-checkbox input[type="checkbox"] { width: auto; flex: none; }
+.task-thread article { padding: 8px 10px; background: var(--bg); border: 1px solid var(--stroke); border-radius: 8px; }
+.task-thread article p { margin-top: 4px; }
+.task-dialog .account-form textarea { width: 100%; resize: vertical; }

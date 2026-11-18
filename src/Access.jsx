@@ -8,9 +8,9 @@ export const roleLabels = { client: 'کلاینت', admin: 'ادمین', manager
 const sections = {
   overview: 'نمای کلی', ingestion: 'ورود و پردازش', events: 'جست‌وجوی رویدادها', explorer: 'کاوش داده‌ها',
   detections: 'قواعد تشخیص', alerts: 'هشدارها', incidents: 'رخدادهای امنیتی', analytics: 'تحلیل هوشمند',
-  'current-model': 'مدل جاری', system: 'سامانه', 'device-health': 'سلامت سیستم‌ها', users: 'کاربران',
+  'current-model': 'مدل جاری', system: 'سامانه', 'device-health': 'سلامت سیستم‌ها', users: 'کاربران', tasks: 'تسک‌ها', 'task-columns': 'مدیریت ستون تسک‌ها',
 };
-const writable = new Set(['ingestion', 'detections', 'alerts', 'incidents', 'analytics', 'current-model', 'device-health', 'users']);
+const writable = new Set(['ingestion', 'detections', 'alerts', 'incidents', 'analytics', 'current-model', 'device-health', 'users', 'tasks', 'task-columns']);
 
 export function canAccess(user, section, write = false) {
   const grant = user.permissions[section];
@@ -51,7 +51,7 @@ export function Login({ onLogin, themeControl }) {
 function Permissions({ role, selected = {} }) {
   return <fieldset className="account-permissions">
     <legend>دسترسی به بخش‌ها</legend>
-    {Object.entries(sections).filter(([id]) => role !== 'client' || id !== 'users').map(([id, label]) =>
+    {Object.entries(sections).filter(([id]) => role !== 'client' || !['users', 'task-columns'].includes(id)).map(([id, label]) =>
       <label key={id}>{label}
         <select aria-label={label} name={'grant-' + id} defaultValue={selected[id] ?? ''}>
           <option value="">بدون دسترسی</option>

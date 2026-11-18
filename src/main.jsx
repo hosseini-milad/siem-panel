@@ -1,11 +1,12 @@
 import { StrictMode, useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  ArrowDownToLine, BellRing, CalendarDays, ChevronLeft, CircleHelp, Database, FolderOpen,
+  ArrowDownToLine, BellRing, CalendarDays, ChevronLeft, CircleHelp, Database, FolderOpen, Kanban, Columns3,
   LayoutDashboard, LogOut, Network, Menu, Monitor, Moon, UsersRound, ScanLine, Search, Settings, Shield, Sparkles, Sun, X,
 } from 'lucide-react';
 import '@fontsource-variable/vazirmatn';
 import Overview from './Overview.jsx';
+import Tasks, { TaskColumns } from './Tasks.jsx';
 import Users, { canAccess, Login, roleLabels } from './Access.jsx';
 import { liveApi } from './api.js';
 import DeviceHealth from './DeviceHealth.jsx';
@@ -17,7 +18,7 @@ import './style.css';
 
 const icons = {
   overview: LayoutDashboard, ingestion: ArrowDownToLine, events: Search, explorer: Database, detections: ScanLine,
-  alerts: BellRing, incidents: FolderOpen, analytics: Sparkles, 'current-model': Network, system: Settings, 'device-health': Monitor, users: UsersRound,
+  alerts: BellRing, incidents: FolderOpen, analytics: Sparkles, 'current-model': Network, system: Settings, 'device-health': Monitor, users: UsersRound, tasks: Kanban, 'task-columns': Columns3,
 };
 const descriptions = {
   overview: 'نمای متمرکز فعالیت‌ها و وضعیت امنیتی سامانه',
@@ -30,6 +31,8 @@ const descriptions = {
   analytics: 'وضعیت آماده‌سازی داده و مدل‌های تشخیص',
   'current-model': 'ساختار، ویژگی‌ها و قرارداد ورودی مدل فعال',
   system: 'سلامت مؤلفه‌ها و تنظیمات سرویس',
+  tasks: 'ثبت و پیگیری کارهای ارجاع‌شده در تابلوی کانبان',
+  'task-columns': 'ترتیب ستون‌ها و مجوز مشاهدهٔ تسک‌های هر ستون',
   users: 'تعریف حساب‌ها، وضعیت کاربران و مجوزهای دسترسی',
   'device-health': 'وضعیت و مصرف منابع دستگاه‌ها · داده‌های ماک',
 };
@@ -191,6 +194,8 @@ function Workspace({ user, themeControl, setUser, endSession }) {
         {route === 'system' && <System />}
         {route === 'device-health' && <DeviceHealth user={user} canWrite={write && user.role !== 'client'} />}
         {route === 'users' && <Users user={user} />}
+        {route === 'tasks' && <Tasks />}
+        {route === 'task-columns' && <TaskColumns canWrite={write} />}
       </main>
     </div>
   </div>;
