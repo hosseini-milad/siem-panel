@@ -19,18 +19,18 @@ export const tones = {
 };
 export const displayValue = value => levels[value] ?? severities[value] ?? statuses[value] ?? value;
 
-export function useResource(path, query = {}, revision = 0) {
+export function useResource(path, query = {}, revision = 0, request = api) {
   const key = JSON.stringify(query);
   const [state, setState] = useState({ data: null, error: '' });
   useEffect(() => {
     let active = true;
     setState({ data: null, error: '' });
-    api(path, { query: JSON.parse(key) }).then(
+    request(path, { query: JSON.parse(key) }).then(
       data => { if (active) setState({ data, error: '' }); },
       error => { if (active) setState({ data: null, error: error.message }); },
     );
     return () => { active = false; };
-  }, [path, key, revision]);
+  }, [path, key, revision, request]);
   return state;
 }
 

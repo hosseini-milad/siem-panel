@@ -13,12 +13,15 @@ export function createApi({ request = mockRequest } = {}) {
         body: JSON.stringify(body),
       }),
     });
-    const data = await response.json();
+    const data = await response.json().catch(() => null);
     if (!response.ok) {
-      throw new Error(typeof data.detail === 'string' ? data.detail : 'درخواست انجام نشد');
+      throw new Error(typeof data?.detail === 'string' ? data.detail : 'درخواست انجام نشد');
     }
+    if (!data) throw new Error('پاسخ API معتبر نیست.');
     return data;
   };
 }
 
 export const api = createApi();
+
+export const explorerApi = createApi({ request: (url, options) => fetch(url, options) });

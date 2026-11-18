@@ -95,7 +95,7 @@ function App() {
           <span>مرکز عملیات امنیت</span><ChevronLeft size={15} /><strong>{current?.label ?? 'نمای کلی'}</strong>
         </div>
         <div className="top-actions">
-          <span className="mock-chip"><i /> حالت ماک</span>
+          <span className="mock-chip"><i /> {route === 'explorer' ? 'API واقعی' : 'حالت ماک'}</span>
           <button className="icon-button" type="button" aria-label={theme === 'dark' ? 'تم روشن' : 'تم تیره'}
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}

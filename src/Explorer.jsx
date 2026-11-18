@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CalendarDays, Search, SlidersHorizontal, X } from 'lucide-react';
+import { explorerApi } from './api.js';
 import { today } from './explorerMock.js';
 import { Badge, Card, logLevels, number, Pagination, Resource, Table, useResource } from './ui.jsx';
 
@@ -20,7 +21,7 @@ function Risk({ value }) {
 }
 
 const columns = [
-  { key: 'timestamp', label: 'زمان', render: row => <time dateTime={row.timestamp}>{timestamp.format(new Date(row.timestamp))}</time> },
+  { key: 'timestamp', label: 'زمان', render: row => row.timestamp ? <time dateTime={row.timestamp}>{timestamp.format(new Date(row.timestamp))}</time> : 'نامشخص' },
   { key: 'source_ip', label: 'IP مبدأ', render: row => <bdi className="mono">{row.source_ip ?? '—'}</bdi> },
   { key: 'destination_ip', label: 'IP مقصد', render: row => <bdi className="mono">{row.destination_ip ?? '—'}</bdi> },
   { key: 'destination_port', label: 'پورت مقصد', render: row => row.destination_port ?? '—' },
@@ -35,7 +36,7 @@ function RecordDetails({ row, onClose }) {
   }, []);
   return <dialog ref={dialog} className="record-dialog" onClose={onClose} aria-labelledby="record-title">
     <header className="card-header">
-      <div><h2 id="record-title">جزئیات رکورد</h2><p>{row.message}</p></div>
+      <div><h2 id="record-title">جزئیات رکورد</h2><p>{row.message} · <bdi>{row.id}</bdi></p></div>
       <button className="icon-button" type="button" onClick={() => dialog.current.close()} aria-label="بستن جزئیات"><X size={18} /></button>
     </header>
     <div className="record-risk"><span>مخاطره</span><Risk value={row.risk} />{row.level && <Badge value={row.level} />}</div>
@@ -53,7 +54,7 @@ export default function Explorer() {
   const [filters, setFilters] = useState({});
   const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState(null);
-  const result = useResource('/explorer/records', { kind, ...dateRange(date), ...filters, limit: pageSize, offset });
+  const result = useResource('/explorer/records', { kind, ...dateRange(date), ...filters, limit: pageSize, offset }, 0, explorerApi);
 
   function toggleAdvanced() {
     if (advanced) setFilters(({ q }) => ({ q }));
