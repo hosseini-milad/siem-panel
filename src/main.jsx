@@ -2,18 +2,19 @@ import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   ArrowDownToLine, BellRing, CalendarDays, ChevronLeft, CircleHelp, Database, FolderOpen,
-  LayoutDashboard, Menu, Moon, ScanLine, Search, Settings, Shield, Sparkles, Sun, X,
+  LayoutDashboard, Network, Menu, Moon, ScanLine, Search, Settings, Shield, Sparkles, Sun, X,
 } from 'lucide-react';
 import '@fontsource-variable/vazirmatn';
 import Overview from './Overview.jsx';
 import Explorer from './Explorer.jsx';
+import CurrentModel from './CurrentModel.jsx';
 import { Analytics, Events, Ingestion, System, Worklist } from './Pages.jsx';
 import { Resource, useResource } from './ui.jsx';
 import './style.css';
 
 const icons = {
   overview: LayoutDashboard, ingestion: ArrowDownToLine, events: Search, explorer: Database, detections: ScanLine,
-  alerts: BellRing, incidents: FolderOpen, analytics: Sparkles, system: Settings,
+  alerts: BellRing, incidents: FolderOpen, analytics: Sparkles, 'current-model': Network, system: Settings,
 };
 const descriptions = {
   overview: 'نمای متمرکز فعالیت‌ها و وضعیت امنیتی سامانه',
@@ -24,6 +25,7 @@ const descriptions = {
   alerts: 'پیگیری هشدارهای امنیتی و تغییر وضعیت آن‌ها',
   incidents: 'مدیریت وضعیت پرونده‌های بررسی',
   analytics: 'وضعیت آماده‌سازی داده و مدل‌های تشخیص',
+  'current-model': 'ساختار، ویژگی‌ها و قرارداد ورودی مدل فعال',
   system: 'سلامت مؤلفه‌ها و تنظیمات سرویس',
 };
 const readRoute = () => {
@@ -44,6 +46,7 @@ function App() {
   const navigation = useResource('/system/navigation');
   const menus = (navigation.data?.menus ?? []).flatMap(menu => menu.id === 'events'
     ? [menu, { id: 'explorer', label: 'کاوش داده‌ها' }]
+    : menu.id === 'analytics' ? [menu, { id: 'current-model', label: 'مدل جاری', parent: 'analytics' }]
     : [menu]);
   const current = menus.find(menu => menu.id === route);
 
@@ -79,9 +82,9 @@ function App() {
       </div>
       <nav aria-label="منوی اصلی">
         <p className="nav-label">فضای کاری</p>
-        <Resource result={navigation}>{() => menus.map(({ id, label }) => {
+        <Resource result={navigation}>{() => menus.map(({ id, label, parent }) => {
           const Icon = icons[id] ?? CircleHelp;
-          return <a key={id} href={'#' + id} aria-current={route === id ? 'page' : undefined}
+          return <a key={id} className={parent ? 'nav-child' : undefined} href={'#' + id} aria-current={route === id ? 'page' : undefined}
               onClick={() => setDrawer(false)}><Icon size={19} strokeWidth={1.8} />{label}</a>;
         })}</Resource>
       </nav>
@@ -92,10 +95,11 @@ function App() {
         <div className="breadcrumbs">
           <button className="icon-button drawer-trigger" aria-controls="sidebar" aria-expanded={drawer}
             aria-label="باز کردن منو" onClick={() => setDrawer(true)}><Menu size={20} /></button>
-          <span>مرکز عملیات امنیت</span><ChevronLeft size={15} /><strong>{current?.label ?? 'نمای کلی'}</strong>
+          <span>مرکز عملیات امنیت</span><ChevronLeft size={15} />{route === 'current-model' && <><a href="#analytics">تحلیل هوشمند</a><ChevronLeft size={15} /></>}
+          <strong>{current?.label ?? (route === 'current-model' ? 'مدل جاری' : 'نمای کلی')}</strong>
         </div>
         <div className="top-actions">
-          <span className="mock-chip"><i /> {route === 'explorer' ? 'API واقعی' : 'حالت ماک'}</span>
+          <span className="mock-chip"><i /> {['explorer', 'current-model'].includes(route) ? 'API واقعی' : 'حالت ماک'}</span>
           <button className="icon-button" type="button" aria-label={theme === 'dark' ? 'تم روشن' : 'تم تیره'}
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
@@ -104,7 +108,7 @@ function App() {
       </header>
       <main id="main">
         <header className="page-heading">
-          <div><h1>{current?.label ?? 'نمای کلی'}</h1><p>{descriptions[route]}</p></div>
+          <div><h1>{current?.label ?? (route === 'current-model' ? 'مدل جاری' : 'نمای کلی')}</h1><p>{descriptions[route]}</p></div>
           {route === 'overview' && <label className="range"><CalendarDays size={17} />
             <select aria-label="بازهٔ زمانی" value={hours} onChange={event => setHours(Number(event.target.value))}>
               <option value="24">۲۴ ساعت اخیر</option><option value="168">۷ روز اخیر</option><option value="720">۳۰ روز اخیر</option>
@@ -117,6 +121,7 @@ function App() {
         {route === 'explorer' && <Explorer />}
         {['detections', 'alerts', 'incidents'].includes(route) && <Worklist key={route} mode={route} />}
         {route === 'analytics' && <Analytics />}
+        {route === 'current-model' && <CurrentModel />}
         {route === 'system' && <System />}
       </main>
     </div>

@@ -136,7 +136,8 @@ export function Analytics() {
       : <p className="notice">پوشه‌ای یافت نشد.</p>}</Resource></Card>
     <Card title="نرمال‌سازی"><Resource result={normalized}>{data => <p className="notice">{number.format(data.total)} رکورد نرمال‌شده</p>}</Resource></Card>
     <Card title="استانداردسازی"><Resource result={standardized}>{data => <p className="notice">{number.format(data.total)} رکورد استاندارد</p>}</Resource></Card>
-    <Card title="یادگیری ماشین" detail="LightGBM · CatBoost"><Resource result={status}>{data => <p className="notice">
+    <Card title="یادگیری ماشین" detail="LightGBM · CatBoost"
+      action={<a className="button" href="#current-model">مدل جاری</a>}><Resource result={status}>{data => <p className="notice">
       <Badge tone={data.machine_learning.available ? 'green' : 'amber'}>{data.machine_learning.available ? 'مدل آماده' : 'مدل هنوز آماده نیست'}</Badge>
     </p>}</Resource></Card>
   </div>;

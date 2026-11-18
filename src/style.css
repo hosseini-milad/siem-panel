@@ -187,3 +187,35 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .record-dialog h3 { font-size: 14px; }
 .record-dialog pre { overflow: auto; background: var(--bg); border-radius: 8px; padding: 12px; font-size: 12px; }
 .record-risk { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+
+nav a.nav-child { margin-inline-start: 22px; }
+.model-page { display: grid; gap: 14px; }
+.model-actions, .model-summary { display: flex; flex-wrap: wrap; gap: 10px; }
+.model-summary { padding: 0 16px 16px; gap: 12px 24px; color: var(--muted); font-size: 13px; }
+.model-summary strong, .model-summary time { color: var(--text); margin-inline-start: 5px; }
+.model-flow { list-style: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 24px;
+  padding: 0 16px 16px; margin: 0; }
+.model-flow > li { position: relative; display: flex; flex-direction: column; justify-content: center;
+  align-items: center; padding: 12px 8px; text-align: center; font-size: 13px;
+  border: 1px solid var(--stroke); border-radius: 8px; background: var(--bg); }
+.model-flow > li:not(:last-child)::after { content: '←'; position: absolute; inset-inline-end: -20px;
+  top: 50%; transform: translateY(-50%); color: var(--purple); }
+.model-branches { gap: 6px; }
+.model-branches > div { width: 100%; padding: 4px; border-radius: 6px; background: var(--surface-hover); }
+.model-branches strong { color: var(--purple); }
+.model-requirements, .model-form { display: grid; gap: 8px; margin: 0; padding: 0 16px 16px; font-size: 13px; }
+.model-requirements dt { font-weight: 700; }
+.model-requirements dd { margin: 0 0 8px; color: var(--muted); overflow-wrap: anywhere; }
+.model-requirements summary { cursor: pointer; }
+.model-form label { display: grid; gap: 5px; }
+.model-form { grid-template-columns: minmax(0, 1fr); }
+.model-form select { justify-self: start; }
+.model-form textarea { width: 100%; resize: vertical; }
+.model-form pre { max-height: 320px; overflow: auto; background: var(--bg); padding: 12px; border-radius: 8px; }
+.model-form .button.primary { background: var(--accent); color: white; }
+
+@media (max-width: 760px) {
+  .model-flow { grid-template-columns: 1fr; }
+  .model-flow > li:not(:last-child)::after { content: '↓'; top: auto; bottom: -23px;
+    inset-inline-end: 50%; transform: translateX(-50%); }
+}

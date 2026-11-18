@@ -24,4 +24,6 @@ export function createApi({ request = mockRequest } = {}) {
 
 export const api = createApi();
 
-export const explorerApi = createApi({ request: (url, options) => fetch(url, options) });
+export const liveApi = createApi({ request: (url, options) => fetch(url, options) });
+
+export const explorerApi = liveApi;
