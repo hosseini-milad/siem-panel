@@ -54,7 +54,7 @@ function Permissions({ role, selected = {} }) {
     {Object.entries(sections).filter(([id]) => role !== 'client' || !['users', 'task-columns'].includes(id)).map(([id, label]) =>
       <label key={id}>{label}
         <select aria-label={label} name={'grant-' + id} defaultValue={selected[id] ?? ''}>
-          <option value="">بدون دسترسی</option>
+          <option value="">{id === 'tasks' ? 'تسک‌های ثبت‌شده یا ارجاع‌شده به حساب' : 'بدون دسترسی'}</option>
           <option value="read">مشاهده</option>
           {writable.has(id) && !(role === 'client' && id === 'device-health') && <option value="write">مشاهده و انجام عملیات</option>}
         </select>
