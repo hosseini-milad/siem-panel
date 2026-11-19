@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, Search, SlidersHorizontal, X } from 'lucide-react';
+import { CalendarDays, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
 import { explorerApi } from './api.js';
 import { today } from './explorerMock.js';
 import { Badge, Card, logLevels, number, Pagination, Resource, Table, useResource } from './ui.jsx';
@@ -59,7 +59,8 @@ export default function Explorer() {
   const [filters, setFilters] = useState({});
   const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState(null);
-  const result = useResource('/explorer/records', { kind, ...dateRange(date), ...filters, limit: pageSize, offset }, 0, explorerApi);
+  const [revision, setRevision] = useState(0);
+  const result = useResource('/explorer/records', { kind, ...dateRange(date), ...filters, limit: pageSize, offset }, revision, explorerApi);
 
   function toggleAdvanced() {
     if (advanced) setFilters(({ q }) => ({ q }));
@@ -75,7 +76,7 @@ export default function Explorer() {
 
   const tableColumns = [
     ...(kind === 'logs' ? [
-      { key: 'message', label: 'پیام لاگ' },
+      { key: 'message', label: 'پیام لاگ', render: row => <bdi className="log-message">{row.message}</bdi> },
       { key: 'level', label: 'سطح', render: row => <Badge value={row.level} /> },
     ] : []),
     ...columns,
@@ -98,6 +99,9 @@ export default function Explorer() {
         <input type="date" aria-label="روز" dir="ltr" value={date} onChange={event => { setDate(event.target.value); setOffset(0); }} />
       </label>
       <button type="button" className="button" onClick={() => { setDate(''); setOffset(0); }}>همهٔ روزها</button>
+      {kind === 'logs' && <button type="button" className="button" onClick={() => setRevision(value => value + 1)}>
+        <RefreshCw size={16} /> به‌روزرسانی لاگ‌ها
+      </button>}
     </div>
     <form className="explorer-form" onSubmit={submit} onReset={() => { setFilters({}); setOffset(0); }}>
       <div className="explorer-search">

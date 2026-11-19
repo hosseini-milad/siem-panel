@@ -180,6 +180,7 @@ input[type="checkbox"] { accent-color: var(--accent); }
 .advanced-filters input, .advanced-filters select { width: 100%; min-width: 0; }
 .advanced-filters legend { font-size: 12px; color: var(--muted); }
 .risk { white-space: nowrap; }
+.log-message { display: block; min-width: 12ch; max-width: 60ch; overflow-wrap: anywhere; white-space: pre-wrap; }
 .record-dialog { color: var(--text); background: var(--surface); border: 1px solid var(--stroke);
   padding: 0 0 14px; border-radius: 14px; width: min(620px, calc(100% - 24px)); max-height: 88dvh; }
 .record-dialog::backdrop { background: var(--overlay); }
