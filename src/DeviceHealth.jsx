@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Activity, ChevronLeft, Cpu, HardDrive, Laptop, MemoryStick, Monitor, Search, Server, TriangleAlert, UserRound, X } from 'lucide-react';
+import { Activity, ChevronLeft, Cpu, HardDrive, Laptop, MemoryStick, Monitor, Search, Server, UserRound, X } from 'lucide-react';
 import { Badge, number, Pagination, Resource, useResource } from './ui.jsx';
 import { liveApi } from './api.js';
 import SystemFields, { systemFields, systemValues } from './SystemFields.jsx';
-import { deviceTypes, forecastWarningThreshold, loadDevices, mockDevice, normalizeDeviceIp, resourceTone } from './deviceHealth.js';
+import { deviceTypes, liveDevice, normalizeDeviceIp, resourceTone } from './deviceHealth.js';
 
 const icons = { desktop: Monitor, laptop: Laptop, server: Server };
 const metrics = [
@@ -13,6 +13,7 @@ const metrics = [
 ];
 const percent = new Intl.NumberFormat('fa-IR', { style: 'percent' });
 const unset = 'ثبت نشده';
+const rate = value => value == null ? unset : `${number.format(value / 1024)} KB/s`;
 
 function DeviceDialog({ title, onClose, children }) {
   const dialog = useRef(null);
@@ -64,9 +65,6 @@ function DeviceCard({ device, onDetails, onUser }) {
     <div className="device-metrics">
       {metrics.map(([key, label, Icon]) => {
         const value = device.online ? device[key] : null;
-        const forecast = device.online ? device.forecast?.[key] : null;
-        const difference = value != null && forecast != null ? Math.abs(value - forecast) : null;
-        const warning = difference != null && difference >= forecastWarningThreshold;
         const tone = resourceTone(value, device.threshold);
         return <div key={key}>
           <div className="device-metric-label"><span><Icon size={15} aria-hidden="true" />{label}</span>
@@ -75,13 +73,7 @@ function DeviceCard({ device, onDetails, onUser }) {
             {value != null && <div className={'device-meter-fill ' + tone} role="meter" aria-label={label}
               aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} style={{ width: `${value}%` }}
               title={tone === 'red' ? 'بحرانی' : tone === 'amber' ? 'بالاتر از آستانه' : 'عادی'} />}
-            {forecast != null && <span className="device-forecast-marker" aria-hidden="true"
-              style={{ '--forecast-position': `${forecast}%` }} />}
           </div>
-          {forecast != null && <div className="device-forecast-caption">
-            <span>پیش‌بینی {percent.format(forecast / 100)}</span>
-            {warning && <strong><TriangleAlert size={14} aria-hidden="true" />هشدار · اختلاف {number.format(difference)} واحد درصد</strong>}
-          </div>}
         </div>;
       })}
     </div>
@@ -122,13 +114,10 @@ export default function DeviceHealth({ user, canWrite }) {
       </select>
     </div>
     {feedback && <p role="status" className="notice device-feedback">{feedback}</p>}
-    <p className="device-forecast-legend">
-      مصرف ماک · <b className="green">عادی</b> تا آستانه · <b className="amber">زرد</b> بالاتر از آستانه ·
-      <b className="red"> قرمز</b> بیشتر از ۱۲۰٪ آستانه. نشانگر زرد باریک، پیش‌بینی مصرف است.
-    </p>
+    <p className="device-forecast-legend">دادهٔ واقعی Agent · <b className="green">عادی</b> تا آستانه ·
+      <b className="amber"> زرد</b> بالاتر از آستانه · <b className="red"> قرمز</b> بیشتر از ۱۲۰٪ آستانه</p>
     <Resource result={result}>{page => {
-      const legacy = loadDevices();
-      const devices = page.items.map(account => mockDevice(account, legacy));
+      const devices = page.items.map(liveDevice);
       const visible = devices.filter(device =>
         (status === 'all' || device.online === (status === 'online')) &&
         (device.ip === searchedIp || [device.name, device.ip, device.mac, device.user, device.branch]
@@ -163,9 +152,15 @@ export default function DeviceHealth({ user, canWrite }) {
     {dialog?.mode === 'details' && <DeviceDialog title={dialog.device.name} onClose={close}>
       <dl className="device-detail-list">
         <div><dt>نوع سیستم</dt><dd>{deviceTypes[dialog.device.type]}</dd></div>
-        <div><dt>وضعیت ماک</dt><dd>{dialog.device.online ? 'روشن' : 'خاموش'}</dd></div>
+        <div><dt>وضعیت</dt><dd>{dialog.device.online ? 'روشن' : 'خاموش'}</dd></div>
+        <div><dt>آخرین دریافت</dt><dd><bdi>{dialog.device.last_seen ? new Date(dialog.device.last_seen).toLocaleString('fa-IR') : unset}</bdi></dd></div>
         {systemFields.slice(1).map(([key, label]) => <div key={key}><dt>{label}</dt>
           <dd><bdi>{dialog.device[key] || unset}</bdi></dd></div>)}
+        <div><dt>معماری</dt><dd><bdi>{dialog.device.architecture || unset}</bdi></dd></div>
+        <div><dt>هستهٔ فیزیکی / منطقی</dt><dd><bdi>{dialog.device.cpu_cores_physical ?? unset} / {dialog.device.cpu_cores_logical ?? unset}</bdi></dd></div>
+        <div><dt>حافظهٔ مصرف‌شده</dt><dd><bdi>{dialog.device.memory_used_mb == null ? unset : `${number.format(dialog.device.memory_used_mb)} MB`}</bdi></dd></div>
+        <div><dt>خواندن / نوشتن دیسک</dt><dd><bdi>{rate(dialog.device.disk_read_bytes_per_sec)} / {rate(dialog.device.disk_write_bytes_per_sec)}</bdi></dd></div>
+        <div><dt>ارسال / دریافت شبکه</dt><dd><bdi>{rate(dialog.device.net_sent_bytes_per_sec)} / {rate(dialog.device.net_recv_bytes_per_sec)}</bdi></dd></div>
       </dl>
       <div className="device-dialog-actions">
         <button className="button" onClick={() => setDialog({ ...dialog, mode: 'user' })}>کاربر جاری</button>

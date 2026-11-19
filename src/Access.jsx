@@ -98,6 +98,26 @@ function BranchForm({ user, onSave }) {
   </Card>;
 }
 
+function ClientSystem({ account, systems }) {
+  const [systemId, setSystemId] = useState(account.system_id ?? '');
+  return <>
+    <input type="hidden" name="system_id" value={systemId} />
+    <fieldset className="account-permissions">
+      <legend>اتصال سیستم شناسایی‌شده</legend>
+      <Resource result={systems}>{data => <label>سیستم
+        <select value={systemId} onChange={event => setSystemId(event.target.value)}>
+          <option value="">ثبت مشخصات به‌صورت دستی</option>
+          {data.items.map(system => <option key={system.id} value={system.id}
+            disabled={Boolean(system.assigned_user && system.assigned_user.id !== account.id)}>
+            {system.hostname} · {system.mac}{system.assigned_user ? ` · ${system.assigned_user.name}` : ''}
+          </option>)}
+        </select>
+      </label>}</Resource>
+    </fieldset>
+    {!systemId && <SystemFields profile={account.system} />}
+  </>;
+}
+
 export default function Users({ user }) {
   const [offset, setOffset] = useState(0);
   const [revision, setRevision] = useState(0);
@@ -108,6 +128,7 @@ export default function Users({ user }) {
   const write = canAccess(user, 'users', true);
   const newRole = manager ? 'admin' : 'client';
   const list = useResource('/users', { offset }, revision, liveApi);
+  const systems = useResource('/systems', { limit: 100 }, revision, liveApi);
 
   async function update(path, method, body) {
     setFeedback({});
@@ -130,9 +151,12 @@ export default function Users({ user }) {
     const values = Object.fromEntries(new FormData(event.currentTarget));
     const { username, name, password, branch } = values;
     const role = editor === 'new' ? newRole : editor.role;
+    const systemId = values.system_id || null;
     const body = {
       username: username.trim(), name: name.trim(),
-      ...(role === 'client' ? { system: systemValues(values) } : {}),
+      ...(role === 'client' ? (systemId ? { system_id: systemId } : {
+        system_id: null, system: systemValues(values),
+      }) : {}),
       ...(manager ? { permissions: getPermissions(values) } : {}),
       ...(role === 'admin' && branch.trim() ? { branch: branch.trim() } : {}),
     };
@@ -182,7 +206,7 @@ export default function Users({ user }) {
             required minLength={12} maxLength={128} /><small>حداقل ۱۲ نویسه</small></label>}
           {editorRole === 'admin' && <label>نام شاخه<input name="branch" defaultValue={editor.branch ?? ''} maxLength={100} /></label>}
         </div>
-        {editorRole === 'client' && <SystemFields profile={editor.system} />}
+        {editorRole === 'client' && <ClientSystem key={editor.id ?? 'new'} account={editor} systems={systems} />}
         {manager && <Permissions role={editorRole} selected={editor.permissions} />}
         {feedback.error && <p className="notice error" role="alert">{feedback.error}</p>}
         <div className="account-actions"><button className="button primary" disabled={busy}>ذخیره</button>
