@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, Send } from 'lucide-react';
-import { api } from './api.js';
+import { api, liveApi } from './api.js';
 import { Badge, Card, eventColumns, logLevels, number, Pagination, Resource, statuses, Table, useResource } from './ui.jsx';
 
 const pageSize = 10;
@@ -125,12 +125,71 @@ export function Worklist({ mode, canWrite }) {
   </Card>;
 }
 
-export function Analytics({ showCurrentModel }) {
+function SystemLogDatasetImport({ canWrite }) {
+  const [path, setPath] = useState('');
+  const [job, setJob] = useState(null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!job?.id || job.status !== 'running') return undefined;
+    let active = true;
+    const refresh = async () => {
+      try {
+        const current = await liveApi('/system-log-datasets/imports/' + job.id);
+        if (active) setJob(current);
+      } catch (requestError) {
+        if (active) setError(requestError.message);
+      }
+    };
+    const timer = window.setInterval(refresh, 1500);
+    refresh();
+    return () => { active = false; window.clearInterval(timer); };
+  }, [job?.id, job?.status]);
+
+  async function submit(event) {
+    event.preventDefault();
+    setPending(true);
+    setError('');
+    setJob(null);
+    try {
+      setJob(await liveApi('/system-log-datasets/imports', { method: 'POST', body: { path } }));
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  const labels = { running: 'در حال ذخیره', completed: 'تکمیل‌شده', failed: 'ناموفق', interrupted: 'متوقف‌شده' };
+  return <Card title="ورود دیتاست لاگ سیستم" detail="مسیر فایل یا پوشه روی خود سرور؛ CSV، JSON، JSONL، NDJSON، LOG، TXT و Gzip">
+    {canWrite ? <form className="batch-form" onSubmit={submit}>
+      <label htmlFor="system-log-dataset-path">مسیر روی سرور</label>
+      <input id="system-log-dataset-path" dir="ltr" value={path} onChange={event => setPath(event.target.value)}
+        placeholder="F:\PY\Server\SIEM\ds\OS\LMD-2023...\Labelled LMD-2023" maxLength={1024} required />
+      <div className="actions"><button className="primary" disabled={pending || job?.status === 'running'}>
+        <Send size={16} /> شروع ذخیره‌سازی
+      </button></div>
+    </form> : <p className="notice">برای شروع عملیات، دسترسی نوشتن بخش تحلیل هوشمند لازم است.</p>}
+    {error && <p className="notice error" role="alert">{error}</p>}
+    {job && <div className="notice" role="status">
+      <strong>{labels[job.status] ?? job.status}</strong>
+      {' · '}{number.format(job.processed ?? 0)} رکورد پردازش‌شده
+      {' · '}{number.format(job.inserted ?? 0)} رکورد تازه
+      {job.file_count != null && <> {' · '}{number.format(job.completed_files ?? 0)} از {number.format(job.file_count)} فایل</>}
+      {job.error && <p className="error">{job.error}</p>}
+    </div>}
+  </Card>;
+}
+
+export function Analytics({ showCurrentModel, canWrite }) {
   const folders = useResource('/datasets/folders');
   const normalized = useResource('/normalization/records', { limit: 1 });
   const standardized = useResource('/standardization/records', { limit: 1 });
   const status = useResource('/system/status');
-  return <div className="detail-grid">
+  return <div className="stack">
+    <SystemLogDatasetImport canWrite={canWrite} />
+    <div className="detail-grid">
     <Card title="دیتاست‌ها"><Resource result={folders}>{data => data.folders.length
       ? <ul className="detail-list">{data.folders.map(folder => <li key={folder}><bdi className="mono">{folder}</bdi></li>)}</ul>
       : <p className="notice">پوشه‌ای یافت نشد.</p>}</Resource></Card>
@@ -140,13 +199,15 @@ export function Analytics({ showCurrentModel }) {
       action={showCurrentModel && <a className="button" href="#current-model">مدل جاری</a>}><Resource result={status}>{data => <p className="notice">
       <Badge tone={data.machine_learning.available ? 'green' : 'amber'}>{data.machine_learning.available ? 'مدل آماده' : 'مدل هنوز آماده نیست'}</Badge>
     </p>}</Resource></Card>
+    </div>
   </div>;
 }
 
 const settingsLabels = {
   mongodb_database: 'نام پایگاه داده', mongodb_server_selection_timeout_ms: 'مهلت انتخاب سرور (ms)',
   mongodb_connect_timeout_ms: 'مهلت اتصال (ms)', mongodb_socket_timeout_ms: 'مهلت سوکت (ms)',
-  datasets_root: 'مسیر دیتاست‌ها', ml_model_dir: 'مسیر مدل', ml_threads: 'رشته‌های پردازش مدل',
+  datasets_root: 'مسیر دیتاست‌ها', system_log_datasets_root: 'ریشهٔ دیتاست لاگ سیستم',
+  ml_model_dir: 'مسیر مدل', ml_threads: 'رشته‌های پردازش مدل',
 };
 export function System() {
   const settings = useResource('/system/settings');

@@ -193,7 +193,7 @@ function Workspace({ user, themeControl, setUser, endSession }) {
         {route === 'events' && <Events />}
         {route === 'explorer' && <Explorer />}
         {['detections', 'alerts', 'incidents'].includes(route) && <Worklist key={route} mode={route} canWrite={write} />}
-        {route === 'analytics' && <Analytics showCurrentModel={permitted('current-model')} />}
+        {route === 'analytics' && <Analytics showCurrentModel={permitted('current-model')} canWrite={write} />}
         {route === 'current-model' && <CurrentModel canWrite={write} showAnalytics={permitted('analytics')} />}
         {route === 'system' && <System />}
         {route === 'systems' && <Systems />}
