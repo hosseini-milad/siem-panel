@@ -9,7 +9,10 @@ const icons = { desktop: Monitor, laptop: Laptop, server: Server };
 const metrics = [
   ['cpu', 'پردازنده', Cpu],
   ['ram', 'حافظه', MemoryStick],
-  ['disk', 'فضای دیسک', HardDrive],
+];
+const activityMetrics = [
+  ['disk', 'دیسک', HardDrive, 'disk_read_bytes_per_sec', 'disk_write_bytes_per_sec', 'خواندن', 'نوشتن'],
+  ['network', 'شبکه', Activity, 'net_recv_bytes_per_sec', 'net_sent_bytes_per_sec', 'دریافت', 'ارسال'],
 ];
 const percent = new Intl.NumberFormat('fa-IR', { style: 'percent' });
 const unset = 'ثبت نشده';
@@ -76,6 +79,13 @@ function DeviceCard({ device, onDetails, onUser }) {
           </div>
         </div>;
       })}
+      <div className="device-activity-grid">
+        {activityMetrics.map(([key, label, Icon, first, second, firstLabel, secondLabel]) => <div key={key}>
+          <div className="device-metric-label"><span><Icon size={15} aria-hidden="true" />{label}</span></div>
+          <small>{firstLabel} <bdi>{device.online ? rate(device[first]) : unset}</bdi></small>
+          <small>{secondLabel} <bdi>{device.online ? rate(device[second]) : unset}</bdi></small>
+        </div>)}
+      </div>
     </div>
     <small>آستانهٔ مصرف {percent.format(device.threshold / 100)}</small>
     <div className="device-card-actions">
@@ -83,6 +93,37 @@ function DeviceCard({ device, onDetails, onUser }) {
       <button className="text-link device-details-link" onClick={onDetails}>جزئیات سیستم <ChevronLeft size={15} /></button>
     </div>
   </article>;
+}
+
+export function Systems() {
+  const [offset, setOffset] = useState(0);
+  const result = useResource('/systems', { limit: 25, offset }, 0, liveApi);
+  const columns = [
+    { key: 'hostname', label: 'سیستم', render: row => <><strong>{row.hostname}</strong>
+      <small className="row-detail"><bdi dir="ltr">{row.mac}</bdi></small></> },
+    { key: 'os', label: 'سیستم‌عامل', render: row => <>{row.os || unset}
+      <small className="row-detail"><bdi>{row.architecture || unset}</bdi></small></> },
+    { key: 'resources', label: 'مصرف', render: row => <>
+      <span>CPU {row.cpu_percent == null ? '—' : percent.format(row.cpu_percent / 100)}</span>
+      <small className="row-detail">RAM {row.memory_percent == null ? '—' : percent.format(row.memory_percent / 100)}</small></> },
+    { key: 'disk', label: 'دیسک', render: row => <>
+      <span>خواندن <bdi>{rate(row.disk_read_bytes_per_sec)}</bdi></span>
+      <small className="row-detail">نوشتن <bdi>{rate(row.disk_write_bytes_per_sec)}</bdi></small></> },
+    { key: 'network', label: 'شبکه', render: row => <>
+      <span>دریافت <bdi>{rate(row.net_recv_bytes_per_sec)}</bdi></span>
+      <small className="row-detail">ارسال <bdi>{rate(row.net_sent_bytes_per_sec)}</bdi></small></> },
+    { key: 'user', label: 'کاربر', render: row => row.assigned_user?.name || 'اختصاص نیافته' },
+    { key: 'status', label: 'وضعیت', render: row => <><Badge tone={row.online ? 'green' : 'muted'}>
+      {row.online ? 'روشن' : 'خاموش'}</Badge><small className="row-detail">
+      {row.last_seen ? new Date(row.last_seen).toLocaleString('fa-IR') : unset}</small></> },
+  ];
+  return <div className="stack">
+    <p className="notice">این فهرست از اطلاعات Agent ساخته می‌شود و فقط‌خواندنی است.</p>
+    <Resource result={result}>{page => <>
+      <Table columns={columns} rows={page.items} empty="هنوز سیستمی شناسایی نشده است." />
+      <Pagination page={page} onOffset={setOffset} />
+    </>}</Resource>
+  </div>;
 }
 
 export default function DeviceHealth({ user, canWrite }) {

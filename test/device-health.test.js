@@ -14,7 +14,8 @@ test('device health uses metrics returned by the backend', () => {
   const device = liveDevice({
     id: 'user-1', name: 'Analyst', username: 'analyst', active: true, branch: 'SOC',
     system: { id: '78:24:af:cb:1b:fd', name: 'DESKTOP-88EQ9K3', online: true,
-      cpu: 7.71, ram: 64.8, disk: null, threshold: 70 },
+      cpu: 7.71, ram: 64.8, disk: null, threshold: 70,
+      disk_read_bytes_per_sec: 2048, net_recv_bytes_per_sec: 4096 },
   });
   assert.equal(device.name, 'DESKTOP-88EQ9K3');
   assert.equal(device.user, 'Analyst');
@@ -22,4 +23,6 @@ test('device health uses metrics returned by the backend', () => {
   assert.equal(device.cpu, 7.71);
   assert.equal(device.ram, 64.8);
   assert.equal(device.disk, null);
+  assert.equal(device.disk_read_bytes_per_sec, 2048);
+  assert.equal(device.net_recv_bytes_per_sec, 4096);
 });

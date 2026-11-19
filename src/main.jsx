@@ -10,7 +10,7 @@ import AvatarUpload from './Avatar.jsx';
 import Tasks, { TaskColumns } from './Tasks.jsx';
 import Users, { canAccess, Login, roleLabels } from './Access.jsx';
 import { liveApi } from './api.js';
-import DeviceHealth from './DeviceHealth.jsx';
+import DeviceHealth, { Systems } from './DeviceHealth.jsx';
 import Explorer from './Explorer.jsx';
 import CurrentModel from './CurrentModel.jsx';
 import { Analytics, Events, Ingestion, System, Worklist } from './Pages.jsx';
@@ -19,7 +19,8 @@ import './style.css';
 
 const icons = {
   overview: LayoutDashboard, ingestion: ArrowDownToLine, events: Search, explorer: Database, detections: ScanLine,
-  alerts: BellRing, incidents: FolderOpen, analytics: Sparkles, 'current-model': Network, system: Settings, 'device-health': Monitor, users: UsersRound, tasks: Kanban, 'task-columns': Columns3,
+  alerts: BellRing, incidents: FolderOpen, analytics: Sparkles, 'current-model': Network, system: Settings,
+  systems: Server, 'device-health': Monitor, users: UsersRound, tasks: Kanban, 'task-columns': Columns3,
 };
 const descriptions = {
   overview: 'نمای متمرکز فعالیت‌ها و وضعیت امنیتی سامانه',
@@ -32,6 +33,7 @@ const descriptions = {
   analytics: 'وضعیت آماده‌سازی داده و مدل‌های تشخیص',
   'current-model': 'ساختار، ویژگی‌ها و قرارداد ورودی مدل فعال',
   system: 'سلامت مؤلفه‌ها و تنظیمات سرویس',
+  systems: 'فهرست فقط‌خواندنی سیستم‌های شناسایی‌شده توسط Agent',
   tasks: 'ثبت و پیگیری کارهای ارجاع‌شده در تابلوی کانبان',
   'task-columns': 'ترتیب ستون‌ها و مجوز مشاهدهٔ تسک‌های هر ستون',
   users: 'تعریف حساب‌ها، وضعیت کاربران و مجوزهای دسترسی',
@@ -194,6 +196,7 @@ function Workspace({ user, themeControl, setUser, endSession }) {
         {route === 'analytics' && <Analytics showCurrentModel={permitted('current-model')} />}
         {route === 'current-model' && <CurrentModel canWrite={write} showAnalytics={permitted('analytics')} />}
         {route === 'system' && <System />}
+        {route === 'systems' && <Systems />}
         {route === 'device-health' && <DeviceHealth user={user} canWrite={write && user.role !== 'client'} />}
         {route === 'users' && <Users user={user} />}
         {route === 'tasks' && <Tasks user={user} />}

@@ -9,11 +9,15 @@ export const roleLabels = { client: 'کلاینت', admin: 'ادمین', manager
 const sections = {
   overview: 'نمای کلی', ingestion: 'ورود و پردازش', events: 'جست‌وجوی رویدادها', explorer: 'کاوش داده‌ها',
   detections: 'قواعد تشخیص', alerts: 'هشدارها', incidents: 'رخدادهای امنیتی', analytics: 'تحلیل هوشمند',
-  'current-model': 'مدل جاری', system: 'سامانه', 'device-health': 'سلامت سیستم‌ها', users: 'کاربران', tasks: 'تسک‌ها', 'task-columns': 'مدیریت ستون تسک‌ها',
+  'current-model': 'مدل جاری', system: 'سامانه', systems: 'سیستم‌ها', 'device-health': 'سلامت سیستم‌ها', users: 'کاربران', tasks: 'تسک‌ها', 'task-columns': 'مدیریت ستون تسک‌ها',
 };
 const writable = new Set(['ingestion', 'detections', 'alerts', 'incidents', 'analytics', 'current-model', 'device-health', 'users', 'tasks', 'task-columns']);
 
 export function canAccess(user, section, write = false) {
+  if (section === 'systems' && !write) {
+    return user.role === 'manager' || ['systems', 'users', 'device-health']
+      .some(key => ['read', 'write'].includes(user.permissions[key]));
+  }
   const grant = user.permissions[section];
   return user.role === 'manager' || grant === 'write' || (!write && grant === 'read');
 }
