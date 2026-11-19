@@ -182,6 +182,111 @@ function SystemLogDatasetImport({ canWrite }) {
   </Card>;
 }
 
+function SystemLogModelPipeline({ canWrite }) {
+  const [normalization, setNormalization] = useState(null);
+  const [training, setTraining] = useState(null);
+  const [model, setModel] = useState(null);
+  const [labels, setLabels] = useState(null);
+  const [maxRecords, setMaxRecords] = useState(200000);
+  const [rounds, setRounds] = useState(300);
+  const [pending, setPending] = useState('');
+  const [error, setError] = useState('');
+
+  async function refreshSummary() {
+    try {
+      setLabels(await liveApi('/system-log-ml/labels'));
+    } catch (requestError) {
+      setError(requestError.message);
+    }
+    try {
+      setModel(await liveApi('/system-log-ml/models/current'));
+    } catch (requestError) {
+      if (requestError.status !== 404) setError(requestError.message);
+    }
+  }
+
+  useEffect(() => { refreshSummary(); }, []);
+
+  useEffect(() => {
+    const job = normalization?.status === 'running' ? normalization : training?.status === 'running' ? training : null;
+    if (!job) return undefined;
+    const base = job === normalization ? '/system-log-ml/normalization/runs/' : '/system-log-ml/training/runs/';
+    let active = true;
+    const refresh = async () => {
+      try {
+        const current = await liveApi(base + job.id);
+        if (!active) return;
+        if (job === normalization) setNormalization(current); else setTraining(current);
+        if (current.status !== 'running') refreshSummary();
+      } catch (requestError) {
+        if (active) setError(requestError.message);
+      }
+    };
+    const timer = window.setInterval(refresh, 2000);
+    refresh();
+    return () => { active = false; window.clearInterval(timer); };
+  }, [normalization?.id, normalization?.status, training?.id, training?.status]);
+
+  async function start(kind) {
+    setPending(kind);
+    setError('');
+    try {
+      if (kind === 'normalization') {
+        setNormalization(await liveApi('/system-log-ml/normalization/runs', { method: 'POST' }));
+      } else {
+        setTraining(await liveApi('/system-log-ml/training/runs', {
+          method: 'POST', body: { max_records: Number(maxRecords), rounds: Number(rounds), random_seed: 42 },
+        }));
+      }
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setPending('');
+    }
+  }
+
+  const running = normalization?.status === 'running' || training?.status === 'running';
+  const metrics = model?.evaluation?.ensemble;
+  return <Card title="مدل تشخیص Label لاگ سیستم" detail="نرمال‌سازی Sysmon، آموزش LightGBM + CatBoost و ارزیابی روی دادهٔ test مستقل">
+    {canWrite && <div className="stack">
+      <div className="actions">
+        <button className="primary" type="button" disabled={pending || running} onClick={() => start('normalization')}>
+          نرمال‌سازی دیتاست
+        </button>
+        <label>حداکثر نمونه آموزش<input type="number" min="100" max="1000000" value={maxRecords}
+          onChange={event => setMaxRecords(event.target.value)} /></label>
+        <label>تعداد دور<input type="number" min="10" max="2000" value={rounds}
+          onChange={event => setRounds(event.target.value)} /></label>
+        <button className="primary" type="button" disabled={pending || running} onClick={() => start('training')}>
+          آموزش و ارزیابی
+        </button>
+      </div>
+    </div>}
+    {!canWrite && <p className="notice">برای اجرای نرمال‌سازی و آموزش، دسترسی نوشتن تحلیل هوشمند لازم است.</p>}
+    {error && <p className="notice error" role="alert">{error}</p>}
+    {normalization && <p className="notice" role="status">نرمال‌سازی: {normalization.status}
+      {' · '}{number.format(normalization.processed ?? 0)} ثبت
+      {' · '}{number.format(normalization.skipped ?? 0)} موجود
+      {' · '}{number.format(normalization.failed ?? 0)} نامعتبر</p>}
+    {training && <p className="notice" role="status">آموزش: {training.status}
+      {training.phase && <> {' · '}{training.phase}</>}
+      {training.sampled != null && <> {' · '}{number.format(training.sampled)} نمونه</>}
+      {training.error && <> {' · '}{training.error}</>}</p>}
+    {labels && <p className="notice">توزیع Labelها: {Object.entries(labels.counts).map(([label, count]) =>
+      <span key={label}> <bdi className="mono">{label}: {number.format(count)}</bdi></span>)}</p>}
+    {model && <div className="detail-grid">
+      <div><strong>مدل فعال</strong><p className="notice"><bdi className="mono">{model.algorithm}</bdi></p></div>
+      <div><strong>ارزیابی Ensemble</strong><p className="notice">
+        Accuracy: {number.format((metrics?.accuracy ?? 0) * 100)}٪ · F1 Macro: {number.format((metrics?.f1_macro ?? 0) * 100)}٪
+      </p></div>
+      <div><strong>Labelها</strong><p className="notice"><bdi className="mono">{model.labels.join(' · ')}</bdi></p></div>
+      <div><strong>ویژگی‌های مهم</strong><p className="notice"><bdi className="mono">
+        {model.feature_weights.slice(0, 5).map(item => item.feature).join(' · ')}
+      </bdi></p></div>
+    </div>}
+  </Card>;
+}
+
 export function Analytics({ showCurrentModel, canWrite }) {
   const folders = useResource('/datasets/folders');
   const normalized = useResource('/normalization/records', { limit: 1 });
@@ -189,6 +294,7 @@ export function Analytics({ showCurrentModel, canWrite }) {
   const status = useResource('/system/status');
   return <div className="stack">
     <SystemLogDatasetImport canWrite={canWrite} />
+    <SystemLogModelPipeline canWrite={canWrite} />
     <div className="detail-grid">
     <Card title="دیتاست‌ها"><Resource result={folders}>{data => data.folders.length
       ? <ul className="detail-list">{data.folders.map(folder => <li key={folder}><bdi className="mono">{folder}</bdi></li>)}</ul>
