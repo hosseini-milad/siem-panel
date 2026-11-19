@@ -2,7 +2,7 @@ import { StrictMode, useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   ArrowDownToLine, BellRing, CalendarDays, ChevronLeft, CircleHelp, Database, FolderOpen, Kanban, Columns3,
-  LayoutDashboard, LogOut, Network, Menu, Monitor, Moon, UsersRound, ScanLine, Search, Settings, Shield, Sparkles, Sun, X,
+  LayoutDashboard, LogOut, Network, Menu, Monitor, Moon, UsersRound, ScanLine, Search, Server, Settings, Shield, Sparkles, Sun, X,
 } from 'lucide-react';
 import '@fontsource-variable/vazirmatn';
 import Overview from './Overview.jsx';
