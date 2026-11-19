@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Activity, ChevronLeft, Cpu, HardDrive, Laptop, MemoryStick, Monitor, Search, Server, UserRound, X } from 'lucide-react';
-import { Badge, number, Pagination, Resource, useResource } from './ui.jsx';
+import { Badge, number, Pagination, Resource, Table, useResource } from './ui.jsx';
 import { liveApi } from './api.js';
 import SystemFields, { systemFields, systemValues } from './SystemFields.jsx';
 import { deviceTypes, liveDevice, normalizeDeviceIp, resourceTone } from './deviceHealth.js';
