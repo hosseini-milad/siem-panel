@@ -307,17 +307,46 @@ function SystemPreviews() {
     </Card>)}</div>;
 }
 
+const collectorStates = {
+  awaiting_first_batch: ['در انتظار اولین ارسال', 'amber'],
+  receiving: ['دریافت برقرار', 'green'],
+  no_recent_batch: ['دریافت اخیر ثبت نشده', 'amber'],
+};
+
+function WebCollectors() {
+  const [revision, setRevision] = useState(0);
+  const result = useResource('/web-services/status', {}, revision, liveApi);
+  return <Card title="وضعیت جمع‌آوری وب‌سرویس‌ها"
+    action={<button className="button" type="button" onClick={() => setRevision(value => value + 1)}>تازه‌سازی</button>}>
+    <Resource result={result}>{data => <>
+      <p className="notice">لاگ محلی SIEM {data.local_logging_enabled ? 'فعال است.' : 'فعال نیست.'}
+        {' '}فاصلهٔ ارسال {number.format(data.interval_seconds)} ثانیه است.</p>
+      <Table rows={data.items.map(item => ({ ...item, id: item.service }))} columns={[
+        { key: 'service', label: 'شناسهٔ سرویس', render: row => <bdi>{row.service}</bdi> },
+        { key: 'state', label: 'وضعیت', render: row => {
+          const [text, tone] = collectorStates[row.state];
+          return <Badge tone={tone}>{text}</Badge>;
+        } },
+        { key: 'received', label: 'آخرین دریافت', render: row => row.last_received_at
+          ? new Date(row.last_received_at).toLocaleString('fa-IR') : '—' },
+        ...[['requests', 'درخواست‌ها'], ['details', 'جزئیات منتخب'], ['invalid_lines', 'خطوط نامعتبر']]
+          .map(([key, label]) => ({ key, label, render: row => row[key] == null ? '—' : number.format(row[key]) })),
+      ]} empty="هیچ سرویس جمع‌آوری در تنظیمات بک‌اند ثبت نشده است." />
+    </>}</Resource>
+  </Card>;
+}
+
 export function System() {
   const [domain, setDomain] = useState('network');
   const settings = useResource('/system/settings', {}, 0, liveApi);
   const pipelines = useResource('/system/pipelines', {}, 0, liveApi);
-  const tabs = [['network', 'سامانهٔ شبکه'], ['system', 'سامانهٔ سیستم‌ها'], ['preview', 'قابلیت‌های نمونهٔ SIEM']];
+  const tabs = [['network', 'سامانهٔ شبکه'], ['system', 'سامانهٔ سیستم‌ها'], ['web', 'وب‌سرویس‌ها'], ['preview', 'قابلیت‌های نمونهٔ SIEM']];
   return <div className="stack">
     <div className="explorer-tabs" aria-label="بخش سامانه">
       {tabs.map(([key, label]) => <button key={key} className="button" type="button"
         aria-pressed={domain === key} onClick={() => setDomain(key)}>{label}</button>)}
     </div>
-    {domain === 'preview' ? <SystemPreviews /> : <div className="detail-grid">
+    {domain === 'web' ? <WebCollectors /> : domain === 'preview' ? <SystemPreviews /> : <div className="detail-grid">
       <Card title="سلامت و پردازش داده" detail="آمار فعلی ذخیره‌سازی براساس شمارش تقریبی MongoDB">
         <Resource result={pipelines}>{data => {
           const pipeline = data[domain];
