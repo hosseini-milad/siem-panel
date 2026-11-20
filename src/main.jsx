@@ -41,7 +41,7 @@ const descriptions = {
   'device-health': 'وضعیت و مصرف واقعی منابع دستگاه‌های متصل',
 };
 const readRoute = () => {
-  const id = window.location.hash.slice(1);
+  const id = window.location.hash.slice(1).split('?')[0];
   return Object.hasOwn(icons, id) ? id : '';
 };
 function initialTheme() {

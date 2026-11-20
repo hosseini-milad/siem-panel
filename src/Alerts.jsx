@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import AlertDetails, { AlertRecord, alertLink } from './AlertDetails.jsx';
 import { liveApi } from './api.js';
 import { Badge, Card, displayValue, number, Pagination, Resource, statuses, Table, useResource } from './ui.jsx';
 
@@ -7,15 +8,9 @@ const states = ['open', 'acknowledged', 'resolved'];
 const severities = ['critical', 'high', 'medium', 'low'];
 const dateTime = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'short', timeStyle: 'short' });
 const day = new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric', timeZone: 'UTC' });
-const collections = {
-  log_events: 'رویداد خام', dataset_records: 'رکورد خام شبکه', standard_records: 'رکورد استاندارد شبکه',
-  'web-records': 'درخواست وب', web_security_signals: 'سیگنال امنیتی', web_service_batches: 'دستهٔ جمع‌آوری',
-  ml_predictions: 'پیش‌بینی شبکه', agent_logs: 'لاگ خام سیستم', agent_logs_label: 'لاگ استاندارد و برچسب‌خورده',
-};
-
-function Summary({ domain, revision }) {
+function Summary({ domain }) {
   const [days, setDays] = useState(7);
-  const resource = useResource('/alerts/summary', { domain, days }, revision, liveApi);
+  const resource = useResource('/alerts/summary', { domain, days }, 0, liveApi);
   return <Card title="روند و شدت هشدارها" detail="تعداد هشدارهای ایجادشده بر اساس روز UTC"
     action={<select aria-label="بازهٔ نمودار" value={days} onChange={event => setDays(Number(event.target.value))}>
       <option value="7">۷ روز</option><option value="30">۳۰ روز</option>
@@ -36,57 +31,6 @@ function Summary({ domain, revision }) {
         </li>)}</ul>
       </div>;
     }}</Resource>
-  </Card>;
-}
-
-function AlertDetails({ id, onClose, canWrite, onChange }) {
-  const [revision, setRevision] = useState(0);
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const path = '/alerts/' + id;
-  const alert = useResource(path, {}, revision, liveApi);
-  const evidence = useResource(path + '/evidence', {}, 0, liveApi);
-
-  async function change(status) {
-    setBusy(true);
-    setError('');
-    try {
-      await liveApi(path, { method: 'PATCH', body: { status } });
-      setRevision(value => value + 1);
-      onChange();
-    } catch (failure) {
-      setError(failure.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return <Card title="جزئیات هشدار" action={<button type="button" className="button" onClick={onClose}>بستن</button>}>
-    <Resource result={alert}>{data => <>
-      <h3>{data.title}</h3>
-      {data.owasp_category && <Badge>{data.owasp_category} · OWASP 2025</Badge>}
-      {data.evidence?.windows_event_id && <Badge tone="blue">Windows Event {data.evidence.windows_event_id}</Badge>}
-      <p>{data.description}</p>
-      <div className="actions">
-        <Badge value={data.severity} /><Badge value={data.status} />
-        <bdi>{data.source}</bdi><time>{dateTime.format(new Date(data.created_at))}</time>
-        {canWrite && <select value={data.status} aria-label="تغییر وضعیت" disabled={busy}
-          onChange={event => change(event.target.value)}>
-          {states.map(state => <option key={state} value={state}>{statuses[state]}</option>)}
-        </select>}
-      </div>
-      {error && <p className="notice error" role="alert">{error}</p>}
-      <h3>زنجیرهٔ شواهد</h3>
-      {data.evidence && <details><summary>فرادادهٔ تشخیص</summary>
-        <pre dir="ltr">{JSON.stringify(data.evidence, null, 2)}</pre>
-      </details>}
-      <Resource result={evidence}>{result => result.items.length ? result.items.map(item =>
-        <details key={item.collection + ':' + item.id} className="alert-evidence">
-          <summary>{collections[item.collection]} · <bdi className="mono">{item.id}</bdi></summary>
-          {item.record ? <pre dir="ltr" tabIndex={0}>{JSON.stringify(item.record, null, 2)}</pre>
-            : <p className="notice">رکورد منبع دیگر در دسترس نیست.</p>}
-        </details>) : <p className="notice">شواهد پیوندخورده‌ای برای این هشدار ثبت نشده است.</p>}</Resource>
-    </>}</Resource>
   </Card>;
 }
 
@@ -126,11 +70,8 @@ function CreateSystemAlert({ onCreated }) {
 
 function AlertDomain({ domain, canWrite }) {
   const [status, setStatus] = useState('');
-  const [selected, setSelected] = useState(null);
   const [offset, setOffset] = useState(0);
-  const [revision, setRevision] = useState(0);
-  const result = useResource('/alerts', { domain, status, limit: 10, offset }, revision, liveApi);
-  const refresh = () => setRevision(value => value + 1);
+  const result = useResource('/alerts', { domain, status, limit: 10, offset }, 0, liveApi);
   const columns = [
     { key: 'title', label: 'عنوان', render: row => <><strong>{row.title}</strong>
       {row.owasp_category && <small className="row-detail" dir="ltr">OWASP {row.owasp_category}</small>}</> },
@@ -139,10 +80,10 @@ function AlertDomain({ domain, canWrite }) {
     { key: 'status', label: 'وضعیت', render: row => <Badge value={row.status} /> },
     { key: 'created_at', label: 'زمان ثبت', render: row => dateTime.format(new Date(row.created_at)) },
     { key: 'details', label: 'جزئیات', render: row =>
-      <button type="button" className="button" onClick={() => setSelected(row.id)}>مشاهده</button> },
+      <a href={alertLink(domain, row.id)} className="button">مشاهده</a> },
   ];
   return <>
-    <Summary domain={domain} revision={revision} />
+    <Summary domain={domain} />
     <Card title="آخرین هشدارها" action={<select aria-label="فیلتر وضعیت هشدار" value={status}
       onChange={event => { setStatus(event.target.value); setOffset(0); }}>
       <option value="">همهٔ وضعیت‌ها</option>
@@ -153,23 +94,38 @@ function AlertDomain({ domain, canWrite }) {
         <Pagination page={data} onOffset={setOffset} />
       </>}</Resource>
     </Card>
-    {selected && <AlertDetails key={selected} id={selected} canWrite={canWrite} onChange={refresh}
-      onClose={() => setSelected(null)} />}
     {domain === 'system' && canWrite && <CreateSystemAlert onCreated={id => {
-      setSelected(id);
-      setOffset(0);
-      setStatus('');
-      refresh();
+      window.location.hash = alertLink(domain, id);
     }} />}
   </>;
 }
 
+function readAlertLocation() {
+  const query = new URLSearchParams(window.location.hash.split('?')[1]);
+  const selected = query.get('domain');
+  return {
+    domain: domains.some(([key]) => key === selected) ? selected : 'network',
+    alertId: query.get('alert'), collection: query.get('collection'), recordId: query.get('record'),
+  };
+}
+
 export default function Alerts({ canWrite }) {
-  const [domain, setDomain] = useState('network');
+  const [{ domain, alertId, collection, recordId }, setLocation] = useState(readAlertLocation);
+  useEffect(() => {
+    const update = () => setLocation(readAlertLocation());
+    window.addEventListener('hashchange', update);
+    return () => window.removeEventListener('hashchange', update);
+  }, []);
+
+  if (alertId && collection && recordId) {
+    return <AlertRecord key={alertId + collection + recordId} domain={domain} alertId={alertId}
+      collection={collection} recordId={recordId} />;
+  }
+  if (alertId) return <AlertDetails key={alertId} domain={domain} id={alertId} canWrite={canWrite} />;
   return <div className="stack">
     <div className="explorer-tabs" aria-label="نوع هشدار">
-      {domains.map(([key, label]) => <button key={key} className="button" type="button"
-        aria-pressed={domain === key} onClick={() => setDomain(key)}>{label}</button>)}
+      {domains.map(([key, label]) => <a key={key} className="button" href={alertLink(key)}
+        aria-current={domain === key ? 'page' : undefined}>{label}</a>)}
     </div>
     <AlertDomain key={domain} domain={domain} canWrite={canWrite} />
   </div>;
