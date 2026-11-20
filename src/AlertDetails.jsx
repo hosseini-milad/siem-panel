@@ -19,7 +19,7 @@ const collections = {
   agent_logs_label: ['لاگ برچسب‌خوردهٔ سیستم', Server],
 };
 const ruleTitles = {
-  login_failure: 'ورود ناموفق مکرر به وب‌سرویس',
+  login_failure: 'خطای مکرر احراز هویت در وب‌سرویس',
   access_denied: 'رد مکرر دسترسی به وب‌سرویس',
   server_error: 'افزایش خطاهای وب‌سرویس',
   logon_failure: 'ورود ناموفق مکرر به ویندوز',
@@ -133,7 +133,7 @@ export function AlertRecord({ domain, alertId, collection, recordId }) {
   </div>;
 }
 
-export default function AlertDetails({ domain, id, canWrite }) {
+export default function AlertDetails({ domain, id, canWrite, canList }) {
   const [revision, setRevision] = useState(0);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -155,7 +155,9 @@ export default function AlertDetails({ domain, id, canWrite }) {
   }
 
   return <div className="stack alert-detail-page">
-    <div><BackLink href={alertLink(domain)}>بازگشت به فهرست هشدارها</BackLink></div>
+    <div><BackLink href={canList ? alertLink(domain) : '#tasks'}>
+      {canList ? 'بازگشت به فهرست هشدارها' : 'بازگشت به تسک‌ها'}
+    </BackLink></div>
     <Resource result={alert}>{data => {
       const items = evidence.data?.items ?? [];
       const origins = [...new Set(items.map(item => metadata(item).origin).filter(Boolean))];

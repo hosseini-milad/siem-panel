@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CalendarDays, Check, Circle, Hash, MessageSquare, Pencil, Plus, RefreshCw, Star, UserRound, UsersRound, X } from 'lucide-react';
 import { Avatar } from './Avatar.jsx';
+import { alertLink } from './AlertDetails.jsx';
 import { liveApi } from './api.js';
 import { Badge, Card, number, Resource, Table, useResource } from './ui.jsx';
 
@@ -189,6 +190,25 @@ function TaskDetails({ task, columns, candidates, suggestions, onUpdate }) {
       <span>{task.closed_at ? 'خاتمه ' : 'ثبت '}{date.format(new Date(task.closed_at ?? task.created_at))}</span>
     </div>
     <Tags tags={task.tags} />
+    {task.alert && <section className="task-alert">
+      <div className="task-meta">
+        <Badge value={task.alert.severity} />
+        {task.routing_pending && <Badge tone="amber">در انتظار ادمین شاخه</Badge>}
+        {task.alert.category && <Badge>{task.alert.category}</Badge>}
+        {task.alert.windows_event_id && <Badge tone="blue">Windows Event {task.alert.windows_event_id}</Badge>}
+      </div>
+      <dl>
+        <div><dt>زمان صدور هشدار</dt><dd>{date.format(new Date(task.alert.created_at))}</dd></div>
+        {task.alert.occurred_at && <div><dt>زمان رخداد</dt><dd>{date.format(new Date(task.alert.occurred_at))}</dd></div>}
+        <div><dt>منبع</dt><dd><bdi>{task.alert.source}</bdi></dd></div>
+        {task.alert.source_ip && <div><dt>IP مبدأ</dt><dd><bdi>{task.alert.source_ip}</bdi></dd></div>}
+        {task.alert.rule && <div><dt>قاعدهٔ تشخیص</dt><dd><bdi>{task.alert.rule}</bdi></dd></div>}
+        {task.alert.observed_count != null && <div><dt>تعداد رخداد</dt><dd>{number.format(task.alert.observed_count)}</dd></div>}
+        {task.alert.threshold != null && <div><dt>آستانه</dt><dd>{number.format(task.alert.threshold)}</dd></div>}
+        {task.alert.window_minutes != null && <div><dt>پنجرهٔ تشخیص</dt><dd>{number.format(task.alert.window_minutes)} دقیقه</dd></div>}
+      </dl>
+      {task.can_view_alert && <a className="button" href={alertLink(task.alert.domain, task.alert.id)}>مشاهدهٔ هشدار و شواهد</a>}
+    </section>}
     {task.description && <p className="task-description">{task.description}</p>}
     <p className="task-people"><UsersRound size={17} />{task.assignees.map(person => person.name).join('، ')}</p>
     {task.can_move && <form className="account-form" key={task.revision} onSubmit={event => {

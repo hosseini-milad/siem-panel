@@ -95,7 +95,10 @@ function Workspace({ user, themeControl, setUser, endSession }) {
   const menus = (navigation.data?.menus ?? []).filter(menu =>
     !['detections', 'incidents'].includes(menu.id) &&
     (canAccess(user, menu.id) || (menu.id === 'tasks' && user.task_access)));
-  const current = menus.find(menu => menu.id === requested) ?? menus[0];
+  const alertDetail = requested === 'alerts' && user.role === 'admin' &&
+    new URLSearchParams(window.location.hash.split('?')[1]).has('alert');
+  const current = menus.find(menu => menu.id === requested) ??
+    (alertDetail ? { id: 'alerts', label: 'جزئیات هشدار' } : menus[0]);
   const route = current?.id;
   const title = current?.label ?? 'فضای کاری';
   const permitted = section => menus.some(menu => menu.id === section);
@@ -195,7 +198,7 @@ function Workspace({ user, themeControl, setUser, endSession }) {
         {route === 'ingestion' && <Ingestion canWrite={write} />}
         {route === 'events' && <Events />}
         {route === 'explorer' && <Explorer />}
-        {route === 'alerts' && <Alerts canWrite={write} />}
+        {route === 'alerts' && <Alerts canWrite={write} canList={canAccess(user, 'alerts')} />}
         {route === 'alert-thresholds' && <AlertThresholds canWrite={write} />}
         {route === 'analytics' && <Analytics showCurrentModel={permitted('current-model')} canWrite={write} />}
         {route === 'current-model' && <CurrentModel canWrite={write} showAnalytics={permitted('analytics')} />}

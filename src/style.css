@@ -344,6 +344,10 @@ nav a.nav-child { margin-inline-start: 22px; }
 .kanban-column h2, .task-thread h3 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 14px; }
 .kanban-column h2 svg { color: var(--purple); flex: none; }
 .kanban-column > header > span, .kanban-empty, .task-meta, .task-people { font-size: 12px; color: var(--muted); }
+.task-alert { border: 1px solid var(--stroke); border-radius: 12px; padding: 12px; }
+.task-alert dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: 12px; margin-block: 12px; }
+.task-alert dt { font-size: 12px; color: var(--muted); }
+.task-alert dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 .kanban-empty { padding: 14px 2px; }
 .kanban-card { display: grid; gap: 8px; padding: 10px; text-align: start; min-width: 0;
   color: var(--text); background: var(--surface); border: 1px solid var(--stroke); border-radius: 9px; }

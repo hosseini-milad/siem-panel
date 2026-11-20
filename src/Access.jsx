@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Building2, LogIn, Pencil, Shield, ShieldCheck, UserRoundPlus, UserRoundX } from 'lucide-react';
+import { LogIn, Pencil, Shield, ShieldCheck, UserRoundPlus, UserRoundX } from 'lucide-react';
 import { Avatar } from './Avatar.jsx';
 import { liveApi } from './api.js';
 import SystemFields, { systemValues } from './SystemFields.jsx';
@@ -74,33 +74,19 @@ function getPermissions(values) {
     .map(([key, value]) => [key.slice(6), value]));
 }
 
-function BranchForm({ user, onSave }) {
-  const [branch, setBranch] = useState(user.branch ?? '');
-  const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState({});
-  async function save(event) {
-    event.preventDefault();
-    setFeedback({});
-    setBusy(true);
-    try {
-      const updated = await liveApi('/auth/branch', { method: 'PATCH', body: { branch: branch.trim() } });
-      setBranch(updated.branch);
-      onSave();
-      setFeedback({ message: 'نام شاخه ذخیره شد.' });
-    } catch (error) {
-      setFeedback({ error: error.message });
-    } finally {
-      setBusy(false);
-    }
-  }
-  return <Card title="شاخهٔ شما">
-    <form className="account-form user-editor" onSubmit={save}>
-      <label>نام شاخه<input value={branch} onChange={event => setBranch(event.target.value)} required maxLength={100} /></label>
-      {feedback.error && <p className="notice error" role="alert">{feedback.error}</p>}
-      {feedback.message && <p className="notice" role="status">{feedback.message}</p>}
-      <div><button className="button" disabled={busy}><Building2 size={16} />ذخیرهٔ شاخه</button></div>
-    </form>
-  </Card>;
+function BranchField({ account, branches }) {
+  const existing = account.branch ?? '';
+  const fixed = branches.find(item => item.name === existing);
+  const [choice, setChoice] = useState(fixed?.id ?? (existing ? 'custom' : ''));
+  return <>
+    <label>شاخه<select name="branch_choice" value={choice} onChange={event => setChoice(event.target.value)}>
+      <option value="">بدون شاخه</option>
+      {branches.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+      <option value="custom">تعریف شاخهٔ دیگر</option>
+    </select></label>
+    {choice === 'custom' && <label>نام شاخهٔ جدید<input name="custom_branch" defaultValue={fixed ? '' : existing}
+      required maxLength={100} /></label>}
+  </>;
 }
 
 function ClientSystem({ account, systems }) {
@@ -134,6 +120,7 @@ export default function Users({ user }) {
   const newRole = manager ? 'admin' : 'client';
   const list = useResource('/users', { offset }, revision, liveApi);
   const systems = useResource('/systems', { limit: 100 }, revision, liveApi);
+  const branches = useResource(manager ? '/users/branches' : null, {}, 0, liveApi);
 
   async function update(path, method, body) {
     setFeedback({});
@@ -154,7 +141,12 @@ export default function Users({ user }) {
   function save(event) {
     event.preventDefault();
     const values = Object.fromEntries(new FormData(event.currentTarget));
-    const { username, name, password, branch } = values;
+    const { username, name, password } = values;
+    const branch = values.branch_choice === 'custom' ? values.custom_branch.trim() : values.branch_choice;
+    if (values.branch_choice === 'custom' && !branch) {
+      setFeedback({ error: 'نام شاخهٔ جدید را وارد کنید.' });
+      return;
+    }
     const role = editor === 'new' ? newRole : editor.role;
     const systemId = values.system_id || null;
     const body = {
@@ -163,7 +155,7 @@ export default function Users({ user }) {
         system_id: null, system: systemValues(values),
       }) : {}),
       ...(manager ? { permissions: getPermissions(values) } : {}),
-      ...(role === 'admin' && branch.trim() ? { branch: branch.trim() } : {}),
+      ...(role === 'admin' && branch !== undefined ? { branch } : {}),
     };
     if (editor === 'new') update('/users', 'POST', { ...body, password });
     else update('/users/' + editor.id, 'PATCH', body);
@@ -193,7 +185,7 @@ export default function Users({ user }) {
 
   const editorRole = editor === 'new' ? newRole : editor?.role;
   return <div className="stack">
-    {!manager && <BranchForm user={user} onSave={() => setRevision(value => value + 1)} />}
+    {!manager && <Card title="شاخهٔ شما"><p>{user.branch || '—'}</p></Card>}
     <Card title="حساب‌های کاربری" action={write && <button className="button primary" disabled={busy}
       onClick={() => { setFeedback({}); setEditor('new'); }}><UserRoundPlus size={17} />تعریف {roleLabels[newRole]}</button>}>
       {feedback.error && !editor && <p className="notice error" role="alert">{feedback.error}</p>}
@@ -209,12 +201,13 @@ export default function Users({ user }) {
             pattern="[A-Za-z0-9_.\-]+" defaultValue={editor.username ?? ''} /></label>
           {editor === 'new' && <label>رمز عبور<input name="password" dir="ltr" type="password" autoComplete="new-password"
             required minLength={12} maxLength={128} /><small>حداقل ۱۲ نویسه</small></label>}
-          {editorRole === 'admin' && <label>نام شاخه<input name="branch" defaultValue={editor.branch ?? ''} maxLength={100} /></label>}
+          {editorRole === 'admin' && <Resource result={branches}>{data => <BranchField account={editor}
+            branches={data.items} />}</Resource>}
         </div>
         {editorRole === 'client' && <ClientSystem key={editor.id ?? 'new'} account={editor} systems={systems} />}
         {manager && <Permissions role={editorRole} selected={editor.permissions} />}
         {feedback.error && <p className="notice error" role="alert">{feedback.error}</p>}
-        <div className="account-actions"><button className="button primary" disabled={busy}>ذخیره</button>
+        <div className="account-actions"><button className="button primary" disabled={busy || (editorRole === 'admin' && !branches.data)}>ذخیره</button>
           <button type="button" className="button" disabled={busy} onClick={() => { setEditor(null); setFeedback({}); }}>انصراف</button></div>
       </form>
     </Card>}

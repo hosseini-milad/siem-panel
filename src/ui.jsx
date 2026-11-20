@@ -25,6 +25,7 @@ export function useResource(path, query = {}, revision = 0, request = api) {
   useEffect(() => {
     let active = true;
     setState({ data: null, error: '' });
+    if (!path) return;
     request(path, { query: JSON.parse(key) }).then(
       data => { if (active) setState({ data, error: '' }); },
       error => { if (active) setState({ data: null, error: error.message }); },

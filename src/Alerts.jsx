@@ -109,7 +109,7 @@ function readAlertLocation() {
   };
 }
 
-export default function Alerts({ canWrite }) {
+export default function Alerts({ canWrite, canList }) {
   const [{ domain, alertId, collection, recordId }, setLocation] = useState(readAlertLocation);
   useEffect(() => {
     const update = () => setLocation(readAlertLocation());
@@ -121,7 +121,8 @@ export default function Alerts({ canWrite }) {
     return <AlertRecord key={alertId + collection + recordId} domain={domain} alertId={alertId}
       collection={collection} recordId={recordId} />;
   }
-  if (alertId) return <AlertDetails key={alertId} domain={domain} id={alertId} canWrite={canWrite} />;
+  if (alertId) return <AlertDetails key={alertId} domain={domain} id={alertId} canWrite={canWrite} canList={canList} />;
+  if (!canList) return <a className="button" href="#tasks">بازگشت به تسک‌ها</a>;
   return <div className="stack">
     <div className="explorer-tabs" aria-label="نوع هشدار">
       {domains.map(([key, label]) => <a key={key} className="button" href={alertLink(key)}

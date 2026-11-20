@@ -13,7 +13,7 @@ const webRules = [
   ['cryptography', 'A04', 'رمزنگاری', 'یافتهٔ پایش TLS یا سیاست رمزنگاری.', LockKeyhole, 'green'],
   ['injection', 'A05', 'تزریق', 'سیگنال مسدودسازی از WAF یا آشکارساز معتبر.', ScanLine, 'amber'],
   ['business_design', 'A06', 'منطق تجاری', 'نقض سیاست گردش‌کار که برنامه ثبت می‌کند.', Workflow, 'purple'],
-  ['login_failure', 'A07', 'احراز هویت', 'شمار پاسخ 401 که به‌عنوان خطای ورود ثبت شده است.', Fingerprint, 'blue'],
+  ['login_failure', 'A07', 'احراز هویت', 'شمار پاسخ‌های ۴۰۱ برای ورود ناموفق یا درخواست به مسیر محافظت‌شده با نشست غایب یا نامعتبر.', Fingerprint, 'blue'],
   ['integrity', 'A08', 'یکپارچگی', 'شکست بررسی امضا یا یکپارچگی داده.', ShieldCheck, 'green'],
   ['logging_health', 'A09', 'سلامت ثبت رویداد', 'خطوط نامعتبر یا توقف دریافت heartbeat.', Radio, 'amber'],
   ['server_error', 'A10', 'شرایط استثنایی', 'شمار پاسخ‌های 5xx از شمارنده‌های هر سرویس.', TriangleAlert, 'red'],
