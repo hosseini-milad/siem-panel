@@ -1,5 +1,6 @@
 import { Activity, ArrowUpLeft, BellRing, FolderOpen, ScanLine } from 'lucide-react';
-import { Badge, Card, eventColumns, number, Resource, Table, time, tones, useResource } from './ui.jsx';
+import { liveApi } from './api.js';
+import { Badge, Card, eventColumns, number, Table, time, tones, useResource } from './ui.jsx';
 
 const metrics = [
   ['event_count', 'رویدادهای ثبت‌شده', 'در بازهٔ انتخابی', Activity, 'purple'],
@@ -35,7 +36,7 @@ function Trend({ series, interval }) {
 }
 
 function Levels({ levels, total }) {
-  if (!levels.length) return <p className="notice">داده‌ای برای این بازه وجود ندارد.</p>;
+  if (!levels.length || !total) return <p className="notice">داده‌ای برای این بازه وجود ندارد.</p>;
   let position = 0;
   const segments = levels.map(({ level, count }) => {
     const start = position;
@@ -52,36 +53,54 @@ function Levels({ levels, total }) {
   </div>;
 }
 
-function OverviewTrend({ since, hours }) {
-  const charts = useResource('/dashboard/charts', {
-    start: since,
-    end: new Date(Date.parse(since) + hours * 3_600_000).toISOString(),
-    interval: hours === 24 ? 'hour' : 'day',
-  });
-  return <Resource result={charts}>{data => <Trend series={data.series} interval={data.interval} />}</Resource>;
+function dailySeries(series) {
+  const days = new Map();
+  for (const { timestamp, count } of series) {
+    const day = new Date(timestamp).toISOString().slice(0, 10);
+    days.set(day, (days.get(day) ?? 0) + count);
+  }
+  return [...days].map(([day, count]) => ({ timestamp: day + 'T00:00:00Z', count }));
+}
+
+function RecentEvents() {
+  const events = useResource('/search/events', { limit: 5 }, 0, liveApi);
+  const sample = useResource('/search/events', { limit: 5 });
+  const liveItems = events.data?.items;
+  const sampleItems = sample.data?.items ?? [];
+  return <Card title="آخرین رویدادها" detail="تازه‌ترین رویدادهای ثبت‌شده"
+    action={<a className="text-link" href="#events">همهٔ رویدادها <ArrowUpLeft size={15} /></a>}>
+    {!liveItems?.length && sampleItems.length > 0 && <Badge>دادهٔ نمونه</Badge>}
+    <Table columns={eventColumns} rows={liveItems?.length ? liveItems : sampleItems} />
+  </Card>;
 }
 
 export default function Overview({ hours, showEvents }) {
-  const overview = useResource('/overview', { hours });
-  const events = useResource('/search/events', { limit: 5 });
+  const overview = useResource('/overview', { hours }, 0, liveApi);
+  const sample = useResource('/overview', { hours });
+  const live = overview.data;
+  const fallback = sample.data;
+  const interval = hours === 24 ? 'hour' : 'day';
+  const hourly = live?.hourly_events?.length ? live.hourly_events : fallback?.hourly_events ?? [];
+  const levels = live?.levels?.length ? live.levels : fallback?.levels ?? [];
+  const sampleMetrics = metrics.some(([key]) => !Number.isFinite(live?.[key]) && Number.isFinite(fallback?.[key]));
   return <>
-    <Resource result={overview}>{data => <div className="metrics">
+    <div className="metrics">
       {metrics.map(([key, label, detail, Icon, tone]) => <section className="card metric" key={key}>
         <div className="metric-head"><span>{label}</span><i className={`metric-icon ${tone}`}><Icon size={19} /></i></div>
-        <strong>{number.format(data[key])}</strong><small>{detail}</small>
+        <strong>{number.format(Number.isFinite(live?.[key]) ? live[key] : fallback?.[key] ?? 0)}</strong>
+        <small>{detail}{sampleMetrics && !Number.isFinite(live?.[key]) && ' · نمونه'}</small>
       </section>)}
-    </div>}</Resource>
+    </div>
     <div className="chart-grid">
       <Card title="روند رویدادها" detail={hours === 24 ? "حجم رویدادها به تفکیک ساعت" : "حجم رویدادها به تفکیک روز"} action={<span className="chart-key"><i /> تعداد رویداد</span>}>
-        <Resource result={overview}>{data => <OverviewTrend since={data.since} hours={data.hours} />}</Resource>
+        {!live?.hourly_events?.length && hourly.length > 0 && <Badge>دادهٔ نمونه</Badge>}
+        <Trend series={interval === 'day' ? dailySeries(hourly) : hourly} interval={interval} />
       </Card>
       <Card title="توزیع سطح رویدادها" detail="تفکیک رویدادها بر اساس سطح">
-        <Resource result={overview}>{data => <Levels levels={data.levels} total={data.event_count} />}</Resource>
+        {!live?.levels?.length && levels.length > 0 && <Badge>دادهٔ نمونه</Badge>}
+        <Levels levels={levels} total={levels.reduce((total, row) => total + row.count, 0)} />
       </Card>
     </div>
-    {showEvents && <Card title="آخرین رویدادها" detail="تازه‌ترین رویدادهای ثبت‌شده"
-      action={<a className="text-link" href="#events">همهٔ رویدادها <ArrowUpLeft size={15} /></a>}>
-      <Resource result={events}>{data => <Table columns={eventColumns} rows={data.items} />}</Resource>
-    </Card>}
+    {showEvents && <RecentEvents />}
   </>;
 }

@@ -31,16 +31,34 @@ const columns = [
   { key: 'risk', label: 'مخاطره', render: row => <Risk value={row.risk} /> },
 ];
 
-function RecordDetails({ row, onClose }) {
+const systemColumns = [
+  columns[0],
+  { key: 'agent_id', label: 'شناسهٔ سیستم', render: row => <bdi>{row.agent_id}</bdi> },
+  { key: 'event_id', label: 'شناسهٔ رخداد', render: row => row.event_id ?? '—' },
+  { key: 'predicted_label', label: 'برچسب مدل', render: row => <Badge value={row.predicted_label} /> },
+  { key: 'prediction_confidence', label: 'اطمینان مدل', render: row =>
+    row.prediction_confidence == null ? '—' : percent.format(row.prediction_confidence) },
+];
+
+function RecordDetails({ row, system, onClose }) {
   const dialog = useRef();
   useEffect(() => {
     dialog.current.showModal();
   }, []);
   return <dialog ref={dialog} className="record-dialog" onClose={onClose} aria-labelledby="record-title">
     <header className="card-header">
-      <div><h2 id="record-title">جزئیات رکورد</h2><p>{row.message} · <bdi>{row.id}</bdi></p></div>
+      <div><h2 id="record-title">جزئیات رکورد</h2><p>{(system ? row.agent_id : row.message)} · <bdi>{row.id}</bdi></p></div>
       <button className="icon-button" type="button" onClick={() => dialog.current.close()} aria-label="بستن جزئیات"><X size={18} /></button>
     </header>
+    {system ? <>
+      <div className="record-risk"><span>برچسب مدل</span><Badge value={row.predicted_label} /></div>
+      <section><h3>اطلاعات خام</h3><pre dir="ltr">{JSON.stringify(row.raw, null, 2)}</pre></section>
+      <section><h3>ویژگی‌های استانداردشده</h3><pre dir="ltr">{JSON.stringify(row.features, null, 2)}</pre></section>
+      <section><h3>نتیجهٔ پیش‌بینی</h3><pre dir="ltr">{JSON.stringify({
+        model_id: row.model_id, normalization_version: row.normalization_version,
+        prediction_confidence: row.prediction_confidence, label_probabilities: row.label_probabilities,
+      }, null, 2)}</pre></section>
+    </> : <>
     <div className="record-risk"><span>برچسب نهایی</span><Risk value={row.risk} />{row.level && <Badge value={row.level} />}</div>
     <section><h3>اطلاعات کامل خام</h3><pre dir="ltr">{JSON.stringify(row.raw, null, 2)}</pre></section>
     <section><h3>اطلاعات نرمال‌شده</h3>{row.normalized
@@ -49,6 +67,7 @@ function RecordDetails({ row, onClose }) {
     <section><h3>اطلاعات استانداردشده</h3>{row.standardized
       ? <pre dir="ltr">{JSON.stringify(row.standardized, null, 2)}</pre>
       : <p className="muted">رکورد استانداردشدهٔ متناظر موجود نیست.</p>}</section>
+    </>}
   </dialog>;
 }
 
@@ -60,7 +79,9 @@ export default function Explorer() {
   const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState(null);
   const [revision, setRevision] = useState(0);
-  const result = useResource('/explorer/records', { kind, ...dateRange(date), ...filters, limit: pageSize, offset }, revision, explorerApi);
+  const system = kind === 'systems';
+  const result = useResource(system ? '/explorer/system-records' : '/explorer/records',
+    { ...(system ? {} : { kind }), ...dateRange(date), ...filters, limit: pageSize, offset }, revision, explorerApi);
 
   function toggleAdvanced() {
     if (advanced) setFilters(({ q }) => ({ q }));
@@ -79,18 +100,20 @@ export default function Explorer() {
       { key: 'message', label: 'پیام لاگ', render: row => <bdi className="log-message">{row.message}</bdi> },
       { key: 'level', label: 'سطح', render: row => <Badge value={row.level} /> },
     ] : []),
-    ...columns,
+    ...(system ? systemColumns : columns),
     { key: 'details', label: 'جزئیات', render: row =>
       <button type="button" className="button" onClick={() => setSelected(row)}>مشاهده</button> },
   ];
 
-  return <Card title="داده‌ها و لاگ‌ها" detail="روز بر اساس منطقهٔ زمانی مرورگر است. فیلترها حداکثر روی ۱۰۰۰ رکورد از بازهٔ انتخابی اعمال می‌شوند.">
+  return <Card title="داده‌ها و لاگ‌ها" detail={system ? "لاگ‌های سیستم برچسب‌خورده در روز انتخابی" : "روز بر اساس منطقهٔ زمانی مرورگر است. فیلترها حداکثر روی ۱۰۰۰ رکورد از بازهٔ انتخابی اعمال می‌شوند."}>
     <div className="explorer-toolbar">
       <div className="explorer-tabs" aria-label="نوع رکورد">
-        {[['data', 'داده‌های شبکه'], ['logs', 'لاگ‌ها']].map(([key, label]) =>
+        {[['data', 'داده‌های شبکه'], ['systems', 'داده‌های سیستم‌ها'], ['logs', 'لاگ‌ها']].map(([key, label]) =>
           <button key={key} type="button" className="button" aria-pressed={kind === key} onClick={() => {
             setKind(key);
-            setFilters(previous => ({ ...previous, level: '' }));
+            setFilters({});
+            setSelected(null);
+            setAdvanced(false);
             setOffset(0);
           }}>{label}</button>,
         )}
@@ -99,20 +122,23 @@ export default function Explorer() {
         <input type="date" aria-label="روز" dir="ltr" value={date} onChange={event => { setDate(event.target.value); setOffset(0); }} />
       </label>
       <button type="button" className="button" onClick={() => { setDate(''); setOffset(0); }}>همهٔ روزها</button>
-      {kind === 'logs' && <button type="button" className="button" onClick={() => setRevision(value => value + 1)}>
+      {kind !== 'data' && <button type="button" className="button" onClick={() => setRevision(value => value + 1)}>
         <RefreshCw size={16} /> به‌روزرسانی لاگ‌ها
       </button>}
     </div>
-    <form className="explorer-form" onSubmit={submit} onReset={() => { setFilters({}); setOffset(0); }}>
+    <form key={kind} className="explorer-form" onSubmit={submit} onReset={() => { setFilters({}); setOffset(0); }}>
       <div className="explorer-search">
-        <label>جست‌وجوی ساده<input name="q" type="search" placeholder="IP، پورت، شناسه یا متن پیام" maxLength={1024} /></label>
+        <label>جست‌وجوی ساده<input name="q" type="search" placeholder={system ? "شناسهٔ دقیق سیستم یا رکورد" : "IP، پورت، شناسه یا متن پیام"} maxLength={system ? 255 : 1024} /></label>
         <button className="button" type="button" aria-expanded={advanced} onClick={toggleAdvanced}>
           <SlidersHorizontal size={16} /> فیلتر پیشرفته
         </button>
         <button type="submit" className="primary"><Search size={16} /> جست‌وجو</button>
         <button type="reset" className="button">پاک کردن فیلترها</button>
       </div>
-      {advanced && <fieldset className="advanced-filters">
+      {advanced && system && <fieldset className="advanced-filters">
+        <label>برچسب مدل<input name="label" maxLength={64} dir="ltr" /></label>
+      </fieldset>}
+      {advanced && !system && <fieldset className="advanced-filters">
         <legend>همهٔ فیلدهای تکمیل‌شده باید با رکورد مطابقت داشته باشند</legend>
         <label>IP کاربر (مبدأ)<input name="source_ip" dir="ltr" maxLength={45} placeholder="192.0.2.10" /></label>
         <label>IP مقصد<input name="destination_ip" dir="ltr" maxLength={45} placeholder="198.51.100.20" /></label>
@@ -130,6 +156,6 @@ export default function Explorer() {
       <Table columns={tableColumns} rows={data.items} empty="در این بازه رکوردی با فیلترهای انتخابی یافت نشد." />
       <Pagination page={data} onOffset={setOffset} />
     </>}</Resource>
-    {selected && <RecordDetails key={selected.id} row={selected} onClose={() => setSelected(null)} />}
+    {selected && <RecordDetails key={selected.id} row={selected} system={system} onClose={() => setSelected(null)} />}
   </Card>;
 }

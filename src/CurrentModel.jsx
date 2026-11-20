@@ -160,17 +160,63 @@ function ModelDetails({ model, canWrite }) {
   </>;
 }
 
+function SystemModelDetails({ model }) {
+  const report = model.evaluation?.ensemble;
+  const weights = new Map((model.feature_weights ?? []).map(row => [row.feature, row]));
+  const rows = (model.features ?? []).map((id, index) => ({
+    id, position: index + 1, light: weights.get(id)?.lightgbm,
+    cat: weights.get(id)?.catboost, weight: weights.get(id)?.weight,
+  }));
+  return <>
+    <Card title={model.algorithm} action={<Badge tone="green">مدل فعال سیستم</Badge>}>
+      <div className="model-summary">
+        <span>تعداد ویژگی‌ها <strong>{number.format(rows.length)}</strong></span>
+        <span>کلاس‌ها <strong>{model.labels?.join('، ')}</strong></span>
+        <span>نسخهٔ نرمال‌سازی <strong>{number.format(model.normalization_version)}</strong></span>
+        {model.created_at && <span>زمان آموزش <time dateTime={model.created_at}>{new Date(model.created_at).toLocaleString('fa-IR')}</time></span>}
+      </div>
+    </Card>
+    <Card title="ارزیابی و وزن ترکیب">
+      <div className="model-summary">
+        <span>وزن LightGBM <strong>{percent.format(model.ensemble?.lightgbm_weight ?? 0)}</strong></span>
+        <span>وزن CatBoost <strong>{percent.format(model.ensemble?.catboost_weight ?? 0)}</strong></span>
+        {report && <>
+          <span>دقت کل <strong>{percent.format(report.accuracy)}</strong></span>
+          <span>Macro-F1 <strong>{percent.format(report.f1_macro)}</strong></span>
+        </>}
+      </div>
+      {report?.per_class && <Table rows={report.per_class.map(row => ({ ...row, id: row.label }))} columns={[
+        { key: 'label', label: 'کلاس' },
+        { key: 'precision', label: 'Precision', render: row => percent.format(row.precision) },
+        { key: 'recall', label: 'Recall', render: row => percent.format(row.recall) },
+        { key: 'f1', label: 'F1', render: row => percent.format(row.f1) },
+      ]} />}
+    </Card>
+    <Card title="ویژگی‌ها به ترتیب ورودی"><Table rows={rows} columns={[...columns,
+      { key: 'weight', label: 'وزن ترکیبی', render: row => row.weight == null ? '—' : percent.format(row.weight) },
+    ]} /></Card>
+  </>;
+}
+
 export default function CurrentModel({ canWrite, showAnalytics }) {
+  const [kind, setKind] = useState('network');
+  return <SelectedModel key={kind} kind={kind} setKind={setKind} canWrite={canWrite} showAnalytics={showAnalytics} />;
+}
+
+function SelectedModel({ kind, setKind, canWrite, showAnalytics }) {
   const [revision, setRevision] = useState(0);
-  const model = useResource('/ml/model', {}, revision, liveApi);
-  const unavailable = model.error === 'No trained model is active';
+  const system = kind === 'system';
+  const model = useResource(system ? '/system-log-ml/models/current' : '/ml/model', {}, revision, liveApi);
+  const unavailable = model.error === (system ? 'No accepted system-log model is active' : 'No trained model is active');
   return <div className="model-page">
     <div className="model-actions">
+      {[['network', 'مدل شبکه'], ['system', 'مدل لاگ سیستم‌ها']].map(([key, label]) =>
+        <button key={key} className="button" aria-pressed={kind === key} onClick={() => setKind(key)}>{label}</button>)}
       <button className="button" onClick={() => setRevision(value => value + 1)}><RefreshCw size={16} /> تازه‌سازی</button>
       <button className="button" disabled={!model.data} onClick={() => download(model.data)}><Download size={16} /> دریافت JSON</button>
       {showAnalytics && <a className="button" href="#analytics"><ArrowLeft size={16} /> تحلیل هوشمند</a>}
     </div>
     {unavailable ? <p className="notice" role="status">هنوز مدل آموزش‌دیده‌ای فعال نیست.</p>
-      : <Resource result={model}>{data => <ModelDetails key={revision} model={data} canWrite={canWrite} />}</Resource>}
+      : <Resource result={model}>{data => (system ? <SystemModelDetails model={data} /> : <ModelDetails key={revision} model={data} canWrite={canWrite} />)}</Resource>}
   </div>;
 }
