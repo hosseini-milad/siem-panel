@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import '@fontsource-variable/vazirmatn';
 import Overview from './Overview.jsx';
+import Alerts from './Alerts.jsx';
 import AvatarUpload from './Avatar.jsx';
 import Tasks, { TaskColumns } from './Tasks.jsx';
 import Users, { canAccess, Login, roleLabels } from './Access.jsx';
@@ -192,7 +193,8 @@ function Workspace({ user, themeControl, setUser, endSession }) {
         {route === 'ingestion' && <Ingestion canWrite={write} />}
         {route === 'events' && <Events />}
         {route === 'explorer' && <Explorer />}
-        {['detections', 'alerts', 'incidents'].includes(route) && <Worklist key={route} mode={route} canWrite={write} />}
+        {route === 'alerts' && <Alerts canWrite={write} />}
+        {['detections', 'incidents'].includes(route) && <Worklist key={route} mode={route} canWrite={write} />}
         {route === 'analytics' && <Analytics showCurrentModel={permitted('current-model')} canWrite={write} />}
         {route === 'current-model' && <CurrentModel canWrite={write} showAnalytics={permitted('analytics')} />}
         {route === 'system' && <System />}

@@ -315,23 +315,85 @@ const settingsLabels = {
   datasets_root: 'مسیر دیتاست‌ها', system_log_datasets_root: 'ریشهٔ دیتاست لاگ سیستم',
   ml_model_dir: 'مسیر مدل', ml_threads: 'رشته‌های پردازش مدل',
 };
+const pipelineFields = {
+  network: [
+    ['dataset_records', 'رکوردهای دیتاست شبکه'],
+    ['standardized_records', 'رکوردهای استانداردشده'],
+    ['predictions', 'پیش‌بینی‌های ذخیره‌شده'],
+  ],
+  system: [
+    ['registered_systems', 'سیستم‌های شناسایی‌شده'],
+    ['agent_logs', 'لاگ‌های خام Agent'],
+    ['labeled_logs', 'لاگ‌های برچسب‌خورده'],
+  ],
+};
+
+const previews = [
+  ['سلامت اتصال‌دهنده‌ها', 'پایش تازگی دریافت و وضعیت کانال‌های ورودی', [
+    ['Sysmon · ایستگاه‌ها', 'دریافت برقرار', '۲ دقیقه پیش'],
+    ['Syslog · فایروال', 'تأخیر در دریافت', '۱۸ دقیقه پیش'],
+  ]],
+  ['پوشش تشخیص MITRE ATT&CK', 'نمایش نگاشت قواعد تشخیص به تکنیک‌ها', [
+    ['T1059 · اجرای مفسر فرمان', 'دارای قاعده', '۲ قاعده'],
+    ['T1547 · اجرای خودکار در شروع', 'نیازمند پوشش', '۰ قاعده'],
+  ]],
+  ['فهرست‌های پایش', 'غنی‌سازی رویدادها با زمینهٔ دارایی و حساب', [
+    ['دارایی‌های حیاتی', 'فهرست IP و میزبان', '۱۲ مدخل'],
+    ['حساب‌های سرویس', 'فهرست شناسه‌های حساب', '۳ مدخل'],
+  ]],
+  ['گردش‌کار پاسخ', 'نمونهٔ هماهنگی اقدامات تیم عملیات', [
+    ['هشدار بحرانی', 'تخصیص به تحلیلگر و اطلاع‌رسانی', 'پیش‌نویس'],
+    ['هشدار تکراری', 'افزودن یادداشت به پرونده', 'پیش‌نویس'],
+  ]],
+];
+
+function SystemPreviews() {
+  return <div className="detail-grid">{previews.map(([title, detail, rows]) =>
+    <Card key={title} title={title} detail={detail} action={<Badge>نمونه</Badge>}>
+      <Table columns={[
+        { key: 'name', label: 'مورد' }, { key: 'state', label: 'وضعیت یا اقدام' }, { key: 'value', label: 'شاخص' },
+      ]} rows={rows.map(([name, state, value]) => ({ id: name, name, state, value }))} />
+    </Card>)}</div>;
+}
+
 export function System() {
-  const settings = useResource('/system/settings');
-  const status = useResource('/system/status');
-  const health = useResource('/health');
-  return <div className="detail-grid">
-    <Card title="سلامت مؤلفه‌ها">
-      <Resource result={status}>{data => <ul className="detail-list">
-        <li><span>MongoDB</span><Badge tone={data.mongodb.available ? 'green' : 'red'}>{data.mongodb.available ? 'در دسترس' : 'قطع'}</Badge></li>
-        <li><span>مدل یادگیری ماشین</span><Badge tone={data.machine_learning.available ? 'green' : 'amber'}>
-          {data.machine_learning.available ? 'آماده' : 'آماده نیست'}</Badge></li>
-      </ul>}</Resource>
-      <Resource result={health}>{data => <p className="notice"><bdi className="mono">GET /health · {data.status}</bdi></p>}</Resource>
-    </Card>
-    <Card title="تنظیمات سامانه" detail="تنظیمات غیرمحرمانهٔ سرویس">
-      <Resource result={settings}>{data => <dl className="detail-list">{Object.entries(settingsLabels).map(([key, label]) => <div key={key}>
-        <dt>{label}</dt><dd><bdi className="mono">{data[key]}</bdi></dd>
-      </div>)}</dl>}</Resource>
-    </Card>
+  const [domain, setDomain] = useState('network');
+  const settings = useResource('/system/settings', {}, 0, liveApi);
+  const pipelines = useResource('/system/pipelines', {}, 0, liveApi);
+  const tabs = [['network', 'سامانهٔ شبکه'], ['system', 'سامانهٔ سیستم‌ها'], ['preview', 'قابلیت‌های نمونهٔ SIEM']];
+  return <div className="stack">
+    <div className="explorer-tabs" aria-label="بخش سامانه">
+      {tabs.map(([key, label]) => <button key={key} className="button" type="button"
+        aria-pressed={domain === key} onClick={() => setDomain(key)}>{label}</button>)}
+    </div>
+    {domain === 'preview' ? <SystemPreviews /> : <div className="detail-grid">
+      <Card title="سلامت و پردازش داده" detail="آمار فعلی ذخیره‌سازی براساس شمارش تقریبی MongoDB">
+        <Resource result={pipelines}>{data => {
+          const pipeline = data[domain];
+          return <dl className="detail-list">
+            <div><dt>MongoDB</dt><dd><Badge tone={data.database_available ? 'green' : 'red'}>
+              {data.database_available ? 'در دسترس' : 'قطع'}
+            </Badge></dd></div>
+            <div><dt>مدل تشخیص</dt><dd><Badge tone={pipeline.model_ready ? 'green' : 'amber'}>
+              {pipeline.model_ready ? 'آماده' : 'آماده نیست'}
+            </Badge></dd></div>
+            {pipelineFields[domain].map(([key, label]) => <div key={key}>
+              <dt>{label}</dt><dd>{number.format(pipeline[key])}</dd>
+            </div>)}
+            <div><dt>{domain === 'network' ? 'آخرین دریافت در مخزن رویدادها' : 'آخرین دریافت از Agent'}</dt>
+              <dd>{pipeline.last_received_at ? new Date(pipeline.last_received_at).toLocaleString('fa-IR') : 'هنوز داده‌ای دریافت نشده'}</dd></div>
+            <div><dt>نگهداری لاگ عملیاتی</dt><dd>{number.format(data.retention_days)} روز</dd></div>
+          </dl>;
+        }}</Resource>
+      </Card>
+      <Card title="تنظیمات سامانه" detail="تنظیمات غیرمحرمانهٔ سرویس">
+        <Resource result={settings}>{data => <dl className="detail-list">
+          {Object.entries(settingsLabels).filter(([key]) => key !== (domain === 'network' ? 'system_log_datasets_root' : 'datasets_root'))
+            .map(([key, label]) => <div key={key}>
+              <dt>{label}</dt><dd><bdi className="mono">{data[key] ?? '—'}</bdi></dd>
+            </div>)}
+        </dl>}</Resource>
+      </Card>
+    </div>}
   </div>;
 }

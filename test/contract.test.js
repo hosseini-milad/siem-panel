@@ -14,7 +14,7 @@ test('navigation matches the id and tag order used by FastAPI', async () => {
     ['detections', ['Detection Rules']],
     ['alerts', ['Alerts']],
     ['incidents', ['Incidents']],
-    ['analytics', ['Datasets', 'Normalization', 'Standardization', 'Machine Learning']],
+    ['analytics', ['Datasets', 'Normalization', 'Standardization', 'Machine Learning', 'Sysmon Dataset & ML']],
     ['system', ['System', 'Health']],
   ]);
   assert.equal(navigation.authentication, false);
