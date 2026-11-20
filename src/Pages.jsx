@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Search, Send } from 'lucide-react';
 import { api, liveApi } from './api.js';
-import { Badge, Card, eventColumns, logLevels, number, Pagination, Resource, statuses, Table, useResource } from './ui.jsx';
+import { Badge, Card, eventColumns, logLevels, number, Pagination, Resource, Table, useResource } from './ui.jsx';
 
 const pageSize = 10;
 const initialBatch = () => JSON.stringify({
@@ -71,55 +71,6 @@ export function Events() {
     </form>
     <Resource result={events}>{data => <>
       <Table columns={eventColumns} rows={data.items} />
-      <Pagination page={data} onOffset={setOffset} />
-    </>}</Resource>
-  </Card>;
-}
-
-export function Worklist({ mode, canWrite }) {
-  const [revision, setRevision] = useState(0);
-  const [offset, setOffset] = useState(0);
-  const [query, setQuery] = useState({});
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState('');
-  const rules = mode === 'detections';
-  const alerts = mode === 'alerts';
-  const path = rules ? '/detections/rules' : '/' + mode;
-  const options = alerts ? ['open', 'acknowledged', 'resolved'] : ['open', 'investigating', 'contained', 'closed'];
-  const result = useResource(path, { ...query, limit: pageSize, offset }, revision);
-  async function change(id, body) {
-    setError('');
-    setPending(true);
-    try {
-      await api(path + '/' + id, { method: 'PATCH', body });
-      setRevision(value => value + 1);
-    } catch (error) {
-      setError(error.message);
-    } finally {
-      setPending(false);
-    }
-  }
-  const columns = [
-    { key: rules ? 'name' : 'title', label: 'عنوان', render: row => <><strong>{rules ? row.name : row.title}</strong><small className="row-detail">{row.description}</small></> },
-    { key: 'severity', label: 'شدت', render: row => <Badge value={row.severity} /> },
-    ...(rules ? [{ key: 'threshold', label: 'آستانه', render: row => number.format(row.threshold) }] : []),
-    { key: 'state', label: 'وضعیت', render: row => rules
-      ? <label className="toggle"><input type="checkbox" checked={row.enabled} aria-label={`فعال بودن ${row.name}`} disabled={pending || !canWrite}
-          onChange={event => change(row.id, { enabled: event.target.checked })} />{row.enabled ? 'فعال' : 'غیرفعال'}</label>
-      : <select aria-label={`وضعیت ${row.title}`} value={row.status} disabled={pending || !canWrite}
-          onChange={event => change(row.id, { status: event.target.value })}>
-          {options.map(status => <option key={status} value={status}>{statuses[status]}</option>)}
-        </select> },
-  ];
-  return <Card title={rules ? 'قواعد شمارشی' : alerts ? 'فهرست هشدارها' : 'پرونده‌های بررسی'}>
-    {!rules && <div className="filters">
-      <label>وضعیت<select value={query.status ?? ''} onChange={event => { setQuery({ status: event.target.value }); setOffset(0); }}>
-        <option value="">همه</option>{options.map(key => <option key={key} value={key}>{statuses[key]}</option>)}
-      </select></label>
-    </div>}
-    {error && <p className="notice error" role="alert">{error}</p>}
-    <Resource result={result}>{data => <>
-      <Table columns={columns} rows={data.items} />
       <Pagination page={data} onOffset={setOffset} />
     </>}</Resource>
   </Card>;

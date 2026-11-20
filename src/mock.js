@@ -4,9 +4,7 @@ const menus = [
   ['overview', 'نمای کلی', ['Overview']],
   ['ingestion', 'ورود و پردازش', ['Ingestion', 'Logs']],
   ['events', 'جست‌وجوی رویدادها', ['Search']],
-  ['detections', 'قواعد تشخیص', ['Detection Rules']],
   ['alerts', 'هشدارها', ['Alerts']],
-  ['incidents', 'رخدادهای امنیتی', ['Incidents']],
   ['analytics', 'تحلیل هوشمند', ['Datasets', 'Normalization', 'Standardization', 'Machine Learning', 'Sysmon Dataset & ML']],
   ['system', 'سامانه', ['System', 'Health']],
 ].map(([id, label, tags]) => ({ id, label, tags }));

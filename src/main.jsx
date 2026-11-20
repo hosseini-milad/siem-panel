@@ -1,8 +1,8 @@
 import { StrictMode, useCallback, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  ArrowDownToLine, BellRing, CalendarDays, ChevronLeft, CircleHelp, Database, FolderOpen, Kanban, Columns3,
-  LayoutDashboard, LogOut, Network, Menu, Monitor, Moon, UsersRound, ScanLine, Search, Server, Settings, Shield, Sparkles, Sun, X,
+  ArrowDownToLine, BellRing, CalendarDays, ChevronLeft, CircleHelp, Database, Kanban, Columns3,
+  LayoutDashboard, LogOut, Network, Menu, Monitor, Moon, UsersRound, Search, Server, Settings, Shield, Sparkles, Sun, X,
 } from 'lucide-react';
 import '@fontsource-variable/vazirmatn';
 import Overview from './Overview.jsx';
@@ -14,13 +14,13 @@ import { liveApi } from './api.js';
 import DeviceHealth, { Systems } from './DeviceHealth.jsx';
 import Explorer from './Explorer.jsx';
 import CurrentModel from './CurrentModel.jsx';
-import { Analytics, Events, Ingestion, System, Worklist } from './Pages.jsx';
+import { Analytics, Events, Ingestion, System } from './Pages.jsx';
 import { Resource, useResource } from './ui.jsx';
 import './style.css';
 
 const icons = {
-  overview: LayoutDashboard, ingestion: ArrowDownToLine, events: Search, explorer: Database, detections: ScanLine,
-  alerts: BellRing, incidents: FolderOpen, analytics: Sparkles, 'current-model': Network, system: Settings,
+  overview: LayoutDashboard, ingestion: ArrowDownToLine, events: Search, explorer: Database,
+  alerts: BellRing, analytics: Sparkles, 'current-model': Network, system: Settings,
   systems: Server, 'device-health': Monitor, users: UsersRound, tasks: Kanban, 'task-columns': Columns3,
 };
 const descriptions = {
@@ -28,9 +28,7 @@ const descriptions = {
   ingestion: 'ثبت گروهی و بررسی آخرین لاگ‌های دریافتی',
   events: 'مرور و فیلتر رویدادهای عملیاتی',
   explorer: 'بررسی روزانهٔ داده‌های شبکه، سیستم‌ها و لاگ‌ها',
-  detections: 'مشاهده و فعال‌سازی قواعد تشخیص',
   alerts: 'پیگیری هشدارهای امنیتی و تغییر وضعیت آن‌ها',
-  incidents: 'مدیریت وضعیت پرونده‌های بررسی',
   analytics: 'وضعیت آماده‌سازی داده و مدل‌های تشخیص',
   'current-model': 'ساختار، ویژگی‌ها و قرارداد ورودی مدل فعال',
   system: 'سلامت مؤلفه‌ها و تنظیمات سرویس',
@@ -92,7 +90,9 @@ function Workspace({ user, themeControl, setUser, endSession }) {
   const [hours, setHours] = useState(24);
   const [logout, setLogout] = useState({ pending: false, error: '' });
   const navigation = useResource('/system/navigation', {}, JSON.stringify([user.permissions, user.task_access]), liveApi);
-  const menus = (navigation.data?.menus ?? []).filter(menu => canAccess(user, menu.id) || (menu.id === 'tasks' && user.task_access));
+  const menus = (navigation.data?.menus ?? []).filter(menu =>
+    !['detections', 'incidents'].includes(menu.id) &&
+    (canAccess(user, menu.id) || (menu.id === 'tasks' && user.task_access)));
   const current = menus.find(menu => menu.id === requested) ?? menus[0];
   const route = current?.id;
   const title = current?.label ?? 'فضای کاری';
@@ -194,7 +194,6 @@ function Workspace({ user, themeControl, setUser, endSession }) {
         {route === 'events' && <Events />}
         {route === 'explorer' && <Explorer />}
         {route === 'alerts' && <Alerts canWrite={write} />}
-        {['detections', 'incidents'].includes(route) && <Worklist key={route} mode={route} canWrite={write} />}
         {route === 'analytics' && <Analytics showCurrentModel={permitted('current-model')} canWrite={write} />}
         {route === 'current-model' && <CurrentModel canWrite={write} showAnalytics={permitted('analytics')} />}
         {route === 'system' && <System />}

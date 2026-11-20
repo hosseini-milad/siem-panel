@@ -72,3 +72,7 @@ npm run build
 تب‌های «هشدار شبکه» و «هشدار سیستم‌ها» آخرین هشدارها، روند روزانه، شدت و وضعیت را از API می‌خوانند. جزئیات هشدار شواهد موجود را تا رکورد منبع نشان می‌دهد. هشدارهای قدیمی بدون دسته در شبکه نمایش داده می‌شوند. تحلیلگر دارای دسترسی عملیات می‌تواند از شناسهٔ یک لاگ برچسب‌خورده هشدار سیستم ثبت کند و وضعیت آن را پیگیری کند.
 
 دو تب زندهٔ سامانه آمادگی مدل، حجم ذخیره‌سازی، آخرین دریافت و تنظیمات عمومی هر مسیر را نشان می‌دهند. تب «قابلیت‌های نمونهٔ SIEM» چهار طرح نمایشی دارد. الگوهای مرجع عبارت‌اند از [پایش Elastic Agent](https://www.elastic.co/docs/reference/fleet/monitor-elastic-agent)، [پوشش MITRE ATT&CK](https://www.elastic.co/docs/solutions/security/detect-and-alert/mitre-attack-coverage)، [فهرست‌های مقادیر](https://www.elastic.co/docs/solutions/security/detect-and-alert/create-manage-value-lists) و [رسیدگی به هشدارها](https://www.elastic.co/docs/solutions/security/detect-and-alert/manage-detection-alerts).
+
+### کاوش وب‌سرویس‌ها
+
+تب «وب‌سرویس‌ها» در کاوش داده‌ها درخواست‌های منتخب را از `/api/v1/explorer/web-records` نمایش می‌دهد. فیلترها شامل روز، سرویس، شناسهٔ درخواست، پیشوند مسیر، متد، کد HTTP، IP مبدأ، حداقل زمان پاسخ و حداقل حجم پاسخ هستند. در جزئیات، هدرهای مجاز و نام فیلدهای JSON در صورت موجود بودن نمایش داده می‌شوند. مدت نگهداری رکوردها ۷ روز است.
