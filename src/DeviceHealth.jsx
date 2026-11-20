@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Activity, ChevronLeft, Cpu, HardDrive, Laptop, MemoryStick, Monitor, Search, Server, UserRound, X } from 'lucide-react';
+import { Activity, ChevronLeft, Cpu, HardDrive, Laptop, MemoryStick, Monitor, RefreshCw, Search, Server, UserRound, X } from 'lucide-react';
 import { Badge, number, Pagination, Resource, Table, useResource } from './ui.jsx';
 import { liveApi } from './api.js';
 import SystemFields, { systemFields, systemValues } from './SystemFields.jsx';
@@ -44,7 +44,7 @@ function DeviceForm({ device, onSave }) {
       });
       onSave();
     } catch (failure) {
-      setError(failure.status === 422 ? 'نشانی IP، نشانی MAC یا آستانه معتبر نیست.' : failure.message);
+      setError(failure.status === 422 ? 'نام، نوع یا آستانهٔ مصرف معتبر نیست.' : failure.message);
     } finally {
       setBusy(false);
     }
@@ -52,9 +52,37 @@ function DeviceForm({ device, onSave }) {
 
   return <form className="account-form user-editor" onSubmit={submit}>
     <SystemFields profile={device} />
+    <p className="muted">IP، MAC و مشخصات فنی از اطلاعات Agent به‌روزرسانی می‌شوند.</p>
     {error && <p className="notice error" role="alert">{error}</p>}
     <button className="button primary" disabled={busy}>ذخیرهٔ سیستم</button>
   </form>;
+}
+
+const changeFields = {
+  ip: 'نشانی IP سیستم', source_ip: 'نشانی مبدأ اتصال', hostname: 'نام میزبان',
+  os_name: 'نام سیستم‌عامل', os_release: 'نسخهٔ سیستم‌عامل', os_version: 'شمارهٔ ساخت سیستم‌عامل',
+  architecture: 'معماری', processor: 'پردازنده', cpu_cores_physical: 'هستهٔ فیزیکی',
+  cpu_cores_logical: 'هستهٔ منطقی', total_ram_gb: 'ظرفیت حافظه (GB)', total_disk_c_gb: 'ظرفیت دیسک (GB)',
+};
+
+function DeviceChanges({ device, revision }) {
+  const [offset, setOffset] = useState(0);
+  const result = useResource('/device-health/' + device.id + '/changes', { offset }, revision, liveApi);
+  const showValue = value => <bdi>{value == null ? unset : String(value)}</bdi>;
+  return <section>
+    <h3>تاریخچهٔ تغییرات Agent</h3>
+    <Resource result={result}>{page => <>
+      <Table rows={page.items} empty="تغییری برای این سیستم ثبت نشده است." columns={[
+        { key: 'changed_at', label: 'زمان', render: row => new Date(row.changed_at).toLocaleString('fa-IR') },
+        { key: 'changes', label: 'قبل و بعد', render: row => <ul className="detail-list">
+          {Object.entries(row.changes).map(([key, { before, after }]) => <li key={key}>
+            <span>{changeFields[key] ?? key}</span><span>{showValue(before)} ← {showValue(after)}</span>
+          </li>)}
+        </ul> },
+      ]} />
+      <Pagination page={page} onOffset={setOffset} />
+    </>}</Resource>
+  </section>;
 }
 
 function DeviceCard({ device, onDetails, onUser }) {
@@ -100,7 +128,8 @@ export function Systems() {
   const result = useResource('/systems', { limit: 25, offset }, 0, liveApi);
   const columns = [
     { key: 'hostname', label: 'سیستم', render: row => <><strong>{row.hostname}</strong>
-      <small className="row-detail"><bdi dir="ltr">{row.mac}</bdi></small></> },
+      <small className="row-detail"><bdi dir="ltr">{row.mac}</bdi></small>
+      <small className="row-detail"><bdi dir="ltr">{row.ip ?? unset}</bdi></small></> },
     { key: 'os', label: 'سیستم‌عامل', render: row => <>{row.os || unset}
       <small className="row-detail"><bdi>{row.architecture || unset}</bdi></small></> },
     { key: 'resources', label: 'مصرف', render: row => <>
@@ -135,6 +164,8 @@ export default function DeviceHealth({ user, canWrite }) {
   const [feedback, setFeedback] = useState('');
   const result = useResource('/device-health', { offset }, revision, liveApi);
   const close = () => setDialog(null);
+  const selectedAccount = result.data?.items.find(account => account.id === dialog?.device.id);
+  const detailDevice = selectedAccount ? liveDevice(selectedAccount) : dialog?.device;
   const search = query.trim().toLowerCase();
   const searchedIp = normalizeDeviceIp(search);
 
@@ -153,6 +184,9 @@ export default function DeviceHealth({ user, canWrite }) {
       <select aria-label="فیلتر وضعیت" value={status} onChange={event => setStatus(event.target.value)}>
         <option value="all">همهٔ وضعیت‌ها</option><option value="online">روشن</option><option value="offline">خاموش</option>
       </select>
+      <button type="button" className="button" onClick={() => setRevision(value => value + 1)}>
+        <RefreshCw size={16} /> تازه‌سازی
+      </button>
     </div>
     {feedback && <p role="status" className="notice device-feedback">{feedback}</p>}
     <p className="device-forecast-legend">دادهٔ واقعی Agent · <b className="green">عادی</b> تا آستانه ·
@@ -190,22 +224,24 @@ export default function DeviceHealth({ user, canWrite }) {
     {canWrite && dialog?.mode === 'form' && <DeviceDialog title="ویرایش سیستم" onClose={close}>
       <DeviceForm device={dialog.device} onSave={saved} />
     </DeviceDialog>}
-    {dialog?.mode === 'details' && <DeviceDialog title={dialog.device.name} onClose={close}>
+    {dialog?.mode === 'details' && <DeviceDialog title={detailDevice.name} onClose={close}>
       <dl className="device-detail-list">
-        <div><dt>نوع سیستم</dt><dd>{deviceTypes[dialog.device.type]}</dd></div>
-        <div><dt>وضعیت</dt><dd>{dialog.device.online ? 'روشن' : 'خاموش'}</dd></div>
-        <div><dt>آخرین دریافت</dt><dd><bdi>{dialog.device.last_seen ? new Date(dialog.device.last_seen).toLocaleString('fa-IR') : unset}</bdi></dd></div>
+        <div><dt>نوع سیستم</dt><dd>{deviceTypes[detailDevice.type]}</dd></div>
+        <div><dt>وضعیت</dt><dd>{detailDevice.online ? 'روشن' : 'خاموش'}</dd></div>
+        <div><dt>آخرین دریافت</dt><dd><bdi>{detailDevice.last_seen ? new Date(detailDevice.last_seen).toLocaleString('fa-IR') : unset}</bdi></dd></div>
         {systemFields.slice(1).map(([key, label]) => <div key={key}><dt>{label}</dt>
-          <dd><bdi>{dialog.device[key] || unset}</bdi></dd></div>)}
-        <div><dt>معماری</dt><dd><bdi>{dialog.device.architecture || unset}</bdi></dd></div>
-        <div><dt>هستهٔ فیزیکی / منطقی</dt><dd><bdi>{dialog.device.cpu_cores_physical ?? unset} / {dialog.device.cpu_cores_logical ?? unset}</bdi></dd></div>
-        <div><dt>حافظهٔ مصرف‌شده</dt><dd><bdi>{dialog.device.memory_used_mb == null ? unset : `${number.format(dialog.device.memory_used_mb)} MB`}</bdi></dd></div>
-        <div><dt>خواندن / نوشتن دیسک</dt><dd><bdi>{rate(dialog.device.disk_read_bytes_per_sec)} / {rate(dialog.device.disk_write_bytes_per_sec)}</bdi></dd></div>
-        <div><dt>ارسال / دریافت شبکه</dt><dd><bdi>{rate(dialog.device.net_sent_bytes_per_sec)} / {rate(dialog.device.net_recv_bytes_per_sec)}</bdi></dd></div>
+          <dd><bdi>{detailDevice[key] || unset}</bdi></dd></div>)}
+        <div><dt>معماری</dt><dd><bdi>{detailDevice.architecture || unset}</bdi></dd></div>
+        <div><dt>هستهٔ فیزیکی / منطقی</dt><dd><bdi>{detailDevice.cpu_cores_physical ?? unset} / {detailDevice.cpu_cores_logical ?? unset}</bdi></dd></div>
+        <div><dt>حافظهٔ مصرف‌شده</dt><dd><bdi>{detailDevice.memory_used_mb == null ? unset : `${number.format(detailDevice.memory_used_mb)} MB`}</bdi></dd></div>
+        <div><dt>خواندن / نوشتن دیسک</dt><dd><bdi>{rate(detailDevice.disk_read_bytes_per_sec)} / {rate(detailDevice.disk_write_bytes_per_sec)}</bdi></dd></div>
+        <div><dt>ارسال / دریافت شبکه</dt><dd><bdi>{rate(detailDevice.net_sent_bytes_per_sec)} / {rate(detailDevice.net_recv_bytes_per_sec)}</bdi></dd></div>
       </dl>
+      <DeviceChanges key={detailDevice.id} device={detailDevice} revision={revision} />
       <div className="device-dialog-actions">
+        <button type="button" className="button" onClick={() => setRevision(value => value + 1)}>تازه‌سازی جزئیات</button>
         <button className="button" onClick={() => setDialog({ ...dialog, mode: 'user' })}>کاربر جاری</button>
-        {canWrite && <button className="button primary" onClick={() => setDialog({ ...dialog, mode: 'form' })}>ویرایش سیستم</button>}
+        {canWrite && <button className="button primary" onClick={() => setDialog({ mode: 'form', device: detailDevice })}>ویرایش سیستم</button>}
       </div>
     </DeviceDialog>}
     {dialog?.mode === 'user' && <DeviceDialog title="کاربر سیستم" onClose={close}>

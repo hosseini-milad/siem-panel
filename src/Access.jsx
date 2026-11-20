@@ -110,7 +110,7 @@ function ClientSystem({ account, systems }) {
       <legend>اتصال سیستم شناسایی‌شده</legend>
       <Resource result={systems}>{data => <label>سیستم
         <select value={systemId} onChange={event => setSystemId(event.target.value)}>
-          <option value="">ثبت مشخصات به‌صورت دستی</option>
+          <option value="">فعلاً بدون اتصال به Agent</option>
           {data.items.map(system => <option key={system.id} value={system.id}
             disabled={Boolean(system.assigned_user && system.assigned_user.id !== account.id)}>
             {system.hostname} · {system.mac}{system.assigned_user ? ` · ${system.assigned_user.name}` : ''}
