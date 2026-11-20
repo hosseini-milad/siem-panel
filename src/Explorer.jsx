@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CalendarDays, RefreshCw, Search, SlidersHorizontal, X } from 'lucide-react';
 import { explorerApi } from './api.js';
+import Correlation from './Correlation.jsx';
 import { today } from './explorerMock.js';
 import { Badge, Card, logLevels, number, Pagination, Resource, Table, useResource } from './ui.jsx';
 
@@ -157,7 +158,7 @@ export default function Explorer() {
       <button type="button" className="button" onClick={() => setSelected(row)}>مشاهده</button> },
   ];
 
-  return <Card title="داده‌ها و لاگ‌ها" detail={web ? "درخواست‌های منتخب وب‌سرویس‌ها با نگهداری ۷ روزه" : system ? "لاگ‌های سیستم برچسب‌خورده در روز انتخابی" : "روز بر اساس منطقهٔ زمانی مرورگر است. فیلترها حداکثر روی ۱۰۰۰ رکورد از بازهٔ انتخابی اعمال می‌شوند."}>
+  return <div className="stack"><Card title="داده‌ها و لاگ‌ها" detail={web ? "درخواست‌های منتخب وب‌سرویس‌ها با نگهداری ۷ روزه" : system ? "لاگ‌های سیستم برچسب‌خورده در روز انتخابی" : "روز بر اساس منطقهٔ زمانی مرورگر است. فیلترها حداکثر روی ۱۰۰۰ رکورد از بازهٔ انتخابی اعمال می‌شوند."}>
     <div className="explorer-toolbar">
       <div className="explorer-tabs" aria-label="نوع رکورد">
         {[['data', 'داده‌های شبکه'], ['systems', 'داده‌های سیستم‌ها'], ['web', 'وب‌سرویس‌ها'], ['logs', 'لاگ‌ها']].map(([key, label]) =>
@@ -210,5 +211,5 @@ export default function Explorer() {
       <Pagination page={data} onOffset={setOffset} />
     </>}</Resource>
     {selected && <RecordDetails key={selected.id} row={selected} system={system} web={web} onClose={() => setSelected(null)} />}
-  </Card>;
+  </Card><Correlation /></div>;
 }

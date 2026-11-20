@@ -424,3 +424,5 @@ nav a.nav-child { margin-inline-start: 22px; }
 .overview-plot { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: stretch; }
 .overview-scale { padding: 13px 4px 10px 0; display: flex; flex-direction: column; justify-content: space-between; text-align: right; color: var(--muted); font-size: 10px; }
 .overview-axis { margin-left: 36px; }
+
+.correlation-graph { display: block; width: min(100%, 620px); max-height: 300px; margin: 12px auto; }
