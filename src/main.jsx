@@ -189,7 +189,7 @@ function Workspace({ user, themeControl, setUser, endSession }) {
             </select>
           </label>}
         </header>}
-        {route === 'overview' && <Overview hours={hours} showEvents={permitted('events')} />}
+        {route === 'overview' && <Overview hours={hours} showEvents={permitted('events')} showAlerts={permitted('alerts')} showExplorer={permitted('explorer')} />}
         {route === 'ingestion' && <Ingestion canWrite={write} />}
         {route === 'events' && <Events />}
         {route === 'explorer' && <Explorer />}

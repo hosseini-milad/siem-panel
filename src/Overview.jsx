@@ -1,65 +1,47 @@
-import { Activity, ArrowUpLeft, BellRing, FolderOpen, ScanLine } from 'lucide-react';
+import { ArrowUpLeft } from 'lucide-react';
 import { liveApi } from './api.js';
-import { Badge, Card, eventColumns, number, Table, time, tones, useResource } from './ui.jsx';
+import { Badge, Card, displayValue, eventColumns, number, Table, useResource } from './ui.jsx';
 
-const metrics = [
-  ['event_count', 'رویدادهای ثبت‌شده', 'در بازهٔ انتخابی', Activity, 'purple'],
-  ['open_alerts', 'هشدارهای فعال', 'باز یا تأیید شده', BellRing, 'orange'],
-  ['active_incidents', 'رخدادهای فعال', 'پرونده‌های بسته‌نشده', FolderOpen, 'blue'],
-  ['enabled_rules', 'قواعد فعال', 'قواعد آمادهٔ ارزیابی', ScanLine, 'green'],
+const domains = [
+  { key: 'network', label: 'شبکه', tone: 'purple', dash: undefined, source: 'رویداد شبکه' },
+  { key: 'system', label: 'سیستم‌عامل', tone: 'blue', dash: '8 4', source: 'لاگ Agent' },
+  { key: 'web', label: 'وب‌سرویس‌ها', tone: 'orange', dash: '2 4', source: 'درخواست HTTP' },
 ];
+const severities = ['critical', 'high', 'medium', 'low'];
+const dateLabel = new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+const hourLabel = new Intl.DateTimeFormat('fa-IR', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+const dateTime = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'short', timeStyle: 'short' });
+const count = value => Number.isFinite(value) ? number.format(value) : '—';
+const seriesLabel = (timestamp, interval) =>
+  (interval === 'day' ? dateLabel : hourLabel).format(new Date(timestamp));
 
-const date = new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric' });
-
-function Trend({ series, interval }) {
-  const label = stamp => interval === 'day' ? date.format(new Date(stamp)) : time(stamp);
-  if (!series.length) return <p className="notice">در این بازه رویدادی ثبت نشده است.</p>;
-  const peak = Math.max(1, ...series.map(row => row.count));
-  const points = series.map((row, i) => [8 + i * 584 / Math.max(1, series.length - 1), 145 - row.count / peak * 128]);
-  const line = points.map((point, i) => `${i ? 'L' : 'M'} ${point.join(' ')}`).join(' ');
-  const area = `${line} L ${points.at(-1)[0]} 145 L 8 145 Z`;
-  const markers = [...new Set([0, Math.floor((series.length - 1) / 3), Math.floor((series.length - 1) * 2 / 3), series.length - 1])];
+function Trend({ series = [], selected, interval, title }) {
+  const maxCount = Math.max(1, ...series.flatMap(row => selected.map(({ key }) => row[key])));
+  const width = 640;
+  const baseline = 134;
+  const x = index => 12 + index * (width - 24) / Math.max(1, series.length - 1);
+  const y = value => baseline - value / maxCount * 116;
+  const marks = series.length ? [...new Set([0, Math.floor((series.length - 1) / 2), series.length - 1])] : [];
   return <div className="trend" dir="ltr">
-    <svg viewBox="0 0 600 152" preserveAspectRatio="none" role="img" aria-label="نمودار روند تعداد رویدادها">
-      <defs><linearGradient id="volume" x1="0" x2="0" y1="0" y2="1" gradientUnits="objectBoundingBox">
-        <stop stopColor="var(--chart)" stopOpacity=".35" /><stop offset="1" stopColor="var(--chart)" stopOpacity=".02" />
-      </linearGradient></defs>
-      {[17, 49, 81, 113, 145].map(y => <line key={y} x1="0" x2="600" y1={y} y2={y} className="gridline" />)}
-      <path d={area} fill="url(#volume)" />
-      <path d={line} fill="none" stroke="var(--chart)" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
-      {points.map(([x, y], i) => <circle key={series[i].timestamp} cx={x} cy={y} r="3" fill="var(--chart)">
-        <title>{label(series[i].timestamp)} · {number.format(series[i].count)}</title>
-      </circle>)}
-    </svg>
-    <div className="axis">{markers.map(i => <span key={i}>{label(series[i].timestamp)}</span>)}</div>
-  </div>;
-}
-
-function Levels({ levels, total }) {
-  if (!levels.length || !total) return <p className="notice">داده‌ای برای این بازه وجود ندارد.</p>;
-  let position = 0;
-  const segments = levels.map(({ level, count }) => {
-    const start = position;
-    position += count / total * 100;
-    return `var(--${tones[level] ?? 'muted'}) ${start}% ${position}%`;
-  });
-  return <div className="levels">
-    <div className="donut" style={{ background: `conic-gradient(${segments.join(',')})` }}>
-      <div><strong>{number.format(total)}</strong><small>کل رویدادها</small></div>
+    <div className="overview-plot">
+      <div className="overview-scale" aria-hidden="true">
+        <span>{series.length ? count(maxCount) : '—'}</span><span>{series.length ? count(0) : '—'}</span>
+      </div>
+      <svg viewBox={`0 0 ${width} 146`} preserveAspectRatio="none" role="img" aria-label={title}>
+      {[18, 47, 76, 105, 134].map(position =>
+        <line key={position} x1="0" x2={width} y1={position} y2={position} className="gridline" />)}
+      {selected.map(({ key, label, tone, dash }) => <g key={key}>
+        <polyline points={series.map((row, index) => `${x(index)},${y(row[key])}`).join(' ')}
+          fill="none" stroke={`var(--${tone})`} strokeWidth="2.5" strokeDasharray={dash} vectorEffect="non-scaling-stroke" />
+        {series.map((row, index) => row[key] > 0 && <circle key={row.timestamp} cx={x(index)} cy={y(row[key])}
+          r="3" fill={`var(--${tone})`}>
+          <title>{label} · {seriesLabel(row.timestamp, interval)} · {count(row[key])}</title>
+        </circle>)}
+      </g>)}
+      </svg>
     </div>
-    <div className="legend">{levels.map(({ level, count }) =>
-      <div key={level}><Badge value={level} /><span>{number.format(count)}</span></div>,
-    )}</div>
+    <div className="axis overview-axis">{marks.map(index => <span key={index}>{seriesLabel(series[index].timestamp, interval)}</span>)}</div>
   </div>;
-}
-
-function dailySeries(series) {
-  const days = new Map();
-  for (const { timestamp, count } of series) {
-    const day = new Date(timestamp).toISOString().slice(0, 10);
-    days.set(day, (days.get(day) ?? 0) + count);
-  }
-  return [...days].map(([day, count]) => ({ timestamp: day + 'T00:00:00Z', count }));
 }
 
 function RecentEvents() {
@@ -74,33 +56,62 @@ function RecentEvents() {
   </Card>;
 }
 
-export default function Overview({ hours, showEvents }) {
-  const overview = useResource('/overview', { hours }, 0, liveApi);
-  const sample = useResource('/overview', { hours });
+function Operations({ live, showAlerts, showExplorer }) {
+  const rows = domains.map(({ key, label }) => {
+    const stamp = live?.sources?.[key]?.last_received_at;
+    return {
+      id: key, label,
+      open: count(live?.alert_queue?.[key]?.open),
+      acknowledged: count(live?.alert_queue?.[key]?.acknowledged),
+      received: stamp ? dateTime.format(new Date(stamp)) : live ? 'دریافت ثبت نشده' : '—',
+    };
+  });
+  return <div className="overview-source-grid">
+    <Card title="صف رسیدگی به هشدارها" detail="هشدارهای رسیدگی‌نشده در همهٔ بازه‌ها"
+      action={showAlerts && <a className="text-link" href="#alerts">هشدارها <ArrowUpLeft size={15} /></a>}>
+      <Table rows={rows} columns={[
+        { key: 'label', label: 'مسیر' }, { key: 'open', label: 'باز' },
+        { key: 'acknowledged', label: 'تأیید شده' },
+      ]} />
+      <div className="model-summary">
+        <span>رخدادهای فعال <strong>{count(live?.active_incidents)}</strong></span>
+        <span>قواعد فعال <strong>{count(live?.enabled_rules)}</strong></span>
+      </div>
+    </Card>
+    <Card title="شدت هشدارها" detail="شمار هشدارهای ثبت‌شده در بازهٔ انتخابی">
+      <ul className="detail-list">{severities.map(key => <li key={key}>
+        <Badge value={key}>{displayValue(key)}</Badge><strong>{count(live?.alert_severities?.[key])}</strong>
+      </li>)}</ul>
+    </Card>
+    <Card title="آخرین دریافت داده" detail="زمان ثبت آخرین داده یا دستهٔ وب در SIEM"
+      action={showExplorer && <a className="text-link" href="#explorer">کاوش داده‌ها <ArrowUpLeft size={15} /></a>}>
+      <Table rows={rows} columns={[{ key: 'label', label: 'مسیر' }, { key: 'received', label: 'آخرین دریافت' }]} />
+    </Card>
+  </div>;
+}
+
+export default function Overview({ hours, showEvents, showAlerts, showExplorer }) {
+  const overview = useResource('/overview/operations', { hours }, 0, liveApi);
   const live = overview.data;
-  const fallback = sample.data;
-  const interval = hours === 24 ? 'hour' : 'day';
-  const hourly = live?.hourly_events?.length ? live.hourly_events : fallback?.hourly_events ?? [];
-  const levels = live?.levels?.length ? live.levels : fallback?.levels ?? [];
-  const sampleMetrics = metrics.some(([key]) => !Number.isFinite(live?.[key]) && Number.isFinite(fallback?.[key]));
-  return <>
-    <div className="metrics">
-      {metrics.map(([key, label, detail, Icon, tone]) => <section className="card metric" key={key}>
-        <div className="metric-head"><span>{label}</span><i className={`metric-icon ${tone}`}><Icon size={19} /></i></div>
-        <strong>{number.format(Number.isFinite(live?.[key]) ? live[key] : fallback?.[key] ?? 0)}</strong>
-        <small>{detail}{sampleMetrics && !Number.isFinite(live?.[key]) && ' · نمونه'}</small>
-      </section>)}
+  const interval = live?.interval ?? (hours <= 24 ? 'hour' : 'day');
+  const intervalText = interval === 'hour' ? 'ساعتی' : 'روزانه';
+  return <div className="stack">
+    <Card title="روند هشدارها در سه مسیر" detail={`شمار هشدارهای ثبت‌شده · ${intervalText} بر اساس UTC`}>
+      <div className="overview-legend">{domains.map(({ key, label, tone }) => <span key={key}>
+        <i style={{ background: `var(--${tone})` }} />{label}<strong>{count(live?.alert_totals?.[key])}</strong>
+      </span>)}</div>
+      {overview.error && <p className="notice error" role="alert">{overview.error}</p>}
+      {!live && !overview.error && <p className="notice" role="status">در حال دریافت داده…</p>}
+      <Trend series={live?.alert_series} selected={domains} interval={interval} title="روند هم‌مقیاس هشدارهای شبکه، سیستم‌عامل و وب‌سرویس‌ها" />
+    </Card>
+    <div className="overview-source-grid">
+      {domains.map(domain => <Card key={domain.key} title={`لاگ ${domain.label}`}
+        detail={domain.key === 'web' ? 'شمار همهٔ درخواست‌ها از دسته‌های جمع‌کننده' : `روند ${intervalText} دادهٔ دریافتی`}
+        action={<Badge tone={domain.tone}>{count(live?.sources?.[domain.key]?.count)} {domain.source}</Badge>}>
+        <Trend series={live?.log_series} selected={[domain]} interval={interval} title={`روند حجم ${domain.source}`} />
+      </Card>)}
     </div>
-    <div className="chart-grid">
-      <Card title="روند رویدادها" detail={hours === 24 ? "حجم رویدادها به تفکیک ساعت" : "حجم رویدادها به تفکیک روز"} action={<span className="chart-key"><i /> تعداد رویداد</span>}>
-        {!live?.hourly_events?.length && hourly.length > 0 && <Badge>دادهٔ نمونه</Badge>}
-        <Trend series={interval === 'day' ? dailySeries(hourly) : hourly} interval={interval} />
-      </Card>
-      <Card title="توزیع سطح رویدادها" detail="تفکیک رویدادها بر اساس سطح">
-        {!live?.levels?.length && levels.length > 0 && <Badge>دادهٔ نمونه</Badge>}
-        <Levels levels={levels} total={levels.reduce((total, row) => total + row.count, 0)} />
-      </Card>
-    </div>
+    <Operations live={live} showAlerts={showAlerts} showExplorer={showExplorer} />
     {showEvents && <RecentEvents />}
-  </>;
+  </div>;
 }
