@@ -65,6 +65,7 @@ function AlertDetails({ id, onClose, canWrite, onChange }) {
     <Resource result={alert}>{data => <>
       <h3>{data.title}</h3>
       {data.owasp_category && <Badge>{data.owasp_category} · OWASP 2025</Badge>}
+      {data.evidence?.windows_event_id && <Badge tone="blue">Windows Event {data.evidence.windows_event_id}</Badge>}
       <p>{data.description}</p>
       <div className="actions">
         <Badge value={data.severity} /><Badge value={data.status} />

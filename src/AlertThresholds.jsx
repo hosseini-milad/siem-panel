@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import {
-  Activity, Boxes, ChevronDown, CircleCheck, Clock3, Fingerprint, ListChecks, LockKeyhole,
+  Activity, Boxes, ChevronDown, CircleCheck, Clock3, Fingerprint, ListChecks, LockKeyhole, Monitor,
   Radio, RotateCcw, Save, ScanLine, Search, Shield, ShieldCheck, SlidersHorizontal, Timer, TriangleAlert, Workflow,
 } from 'lucide-react';
 import { liveApi } from './api.js';
 import { Badge, displayValue, number, Resource, useResource } from './ui.jsx';
 
-const rules = [
+const webRules = [
   ['access_denied', 'A01', 'کنترل دسترسی', 'تکرار پاسخ 403 که به‌عنوان رد دسترسی ثبت شده است.', Shield, 'blue'],
   ['configuration', 'A02', 'پیکربندی', 'یافتهٔ بررسی سیاست پیکربندی.', SlidersHorizontal, 'purple'],
   ['supply_chain', 'A03', 'زنجیرهٔ تأمین', 'یافتهٔ CI/CD یا اسکن وابستگی.', Boxes, 'blue'],
@@ -18,6 +18,26 @@ const rules = [
   ['logging_health', 'A09', 'سلامت ثبت رویداد', 'خطوط نامعتبر یا توقف دریافت heartbeat.', Radio, 'amber'],
   ['server_error', 'A10', 'شرایط استثنایی', 'شمار پاسخ‌های 5xx از شمارنده‌های هر سرویس.', TriangleAlert, 'red'],
 ];
+
+const systemRules = [
+  ['logon_failure', '4625', 'ورود ناموفق مکرر', 'شمار ورودهای ناموفق به‌ازای میزبان و مبدأ ورود یا حساب.', Fingerprint, 'blue'],
+  ['account_lockout', '4740', 'قفل حساب کاربری', 'ثبت قفل حساب توسط Windows Security.', LockKeyhole, 'amber'],
+  ['audit_log_cleared', '1102', 'پاک‌شدن لاگ امنیتی', 'Windows پاک‌شدن لاگ Security را گزارش کرده است.', Shield, 'red'],
+  ['audit_policy_changed', '4719', 'تغییر سیاست ممیزی', 'ثبت تغییر سیاست Audit در Windows.', SlidersHorizontal, 'purple'],
+  ['service_installed', '4697', 'نصب سرویس جدید', 'ثبت نصب سرویس در کانال Security.', Boxes, 'blue'],
+];
+const scopes = {
+  web: {
+    label: 'وب‌سرویس‌ها', Icon: ShieldCheck, rules: webRules,
+    title: 'قواعد هشدار وب‌سرویس', description: 'مدیریت قواعد OWASP Top 10:2025 و ارزیابی تنظیمات ذخیره‌شده روی داده‌های جاری',
+    evaluationPath: '/alerts/owasp/evaluate',
+  },
+  system: {
+    label: 'سیستم‌عامل', Icon: Monitor, rules: systemRules,
+    title: 'قواعد هشدار Windows Security', description: 'آستانه‌ها بر اساس رویدادهای کانال Security که Agent ارسال می‌کند ارزیابی می‌شوند.',
+    evaluationPath: '/alerts/system/evaluate',
+  },
+};
 
 const fields = [
   ['threshold', 'حد آستانه', 1, 500, ListChecks, 'رخداد'],
@@ -75,7 +95,8 @@ function ThresholdRule({ definition, rule, expanded, onExpand, onChange, locked,
   </article>;
 }
 
-function ThresholdWorkspace({ data, canWrite }) {
+function ThresholdWorkspace({ data, canWrite, scope, settingsPath }) {
+  const { Icon, rules, title, description, evaluationPath } = scopes[scope];
   const [saved, setSaved] = useState(data);
   const [draft, setDraft] = useState(data);
   const [filter, setFilter] = useState('all');
@@ -121,7 +142,7 @@ function ThresholdWorkspace({ data, canWrite }) {
     }
     setSaving(true);
     try {
-      const updated = await liveApi('/alerts/settings/web', { method: 'PUT', body: draft });
+      const updated = await liveApi(settingsPath, { method: 'PUT', body: draft });
       setSaved(updated);
       setDraft(updated);
       setNotice({ message: 'آستانه‌ها ذخیره شدند.' });
@@ -136,7 +157,7 @@ function ThresholdWorkspace({ data, canWrite }) {
     setEvaluating(true);
     setEvaluation(null);
     try {
-      setEvaluation(await liveApi('/alerts/owasp/evaluate', { method: 'POST' }));
+      setEvaluation(await liveApi(evaluationPath, { method: 'POST' }));
     } catch (failure) {
       setEvaluation({ error: failure.message });
     } finally {
@@ -151,12 +172,12 @@ function ThresholdWorkspace({ data, canWrite }) {
   }
 
   return <form className="threshold-workspace" onSubmit={save} noValidate>
-    <section className="card threshold-overview" aria-labelledby="threshold-overview-title">
+    <section className="card threshold-overview" aria-labelledby={`threshold-overview-${scope}`}>
       <div className="threshold-overview-heading">
-        <span className="threshold-overview-icon"><ShieldCheck size={27} aria-hidden="true" /></span>
+        <span className="threshold-overview-icon"><Icon size={27} aria-hidden="true" /></span>
         <div>
-          <h2 id="threshold-overview-title">قواعد هشدار وب‌سرویس</h2>
-          <p>مدیریت قواعد OWASP Top 10:2025 و ارزیابی تنظیمات ذخیره‌شده روی داده‌های جاری</p>
+          <h2 id={`threshold-overview-${scope}`}>{title}</h2>
+          <p>{description}</p>
         </div>
       </div>
       {canWrite && <button type="button" className="button threshold-evaluate" disabled={evaluating || saving} onClick={evaluate}>
@@ -164,9 +185,11 @@ function ThresholdWorkspace({ data, canWrite }) {
       </button>}
     </section>
     {evaluation?.error && <p className="notice error threshold-feedback" role="alert"><TriangleAlert size={17} />{evaluation.error}</p>}
-    {evaluation?.items && <p className="notice threshold-feedback" role="status"><CircleCheck size={17} aria-hidden="true" />
-      {number.format(evaluation.items.length)} سرویس ارزیابی شد و {number.format(evaluation.alerts_created)} هشدار جدید ثبت شد.
-      {evaluation.items.some(item => item.request_rules_skipped) && ' بعضی قواعد درخواست به دلیل حجم زیاد اجرا نشدند.'}
+    {evaluation && !evaluation.error && <p className="notice threshold-feedback" role="status"><CircleCheck size={17} aria-hidden="true" />
+      {evaluation.items
+        ? `${number.format(evaluation.items.length)} سرویس ارزیابی شد و ${number.format(evaluation.alerts_created)} هشدار جدید ثبت شد.`
+        : `${number.format(evaluation.matched_events)} رویداد منطبق و ${number.format(evaluation.alerts_created)} هشدار جدید.`}
+      {(evaluation.request_rules_skipped || evaluation.items?.some(item => item.request_rules_skipped)) && ' بعضی قواعد درخواست به دلیل حجم زیاد اجرا نشدند.'}
     </p>}
     <div className="threshold-toolbar">
       <div className="threshold-filters explorer-tabs" aria-label="فیلتر وضعیت قواعد">
@@ -210,7 +233,27 @@ function ThresholdWorkspace({ data, canWrite }) {
   </form>;
 }
 
+function ThresholdScope({ scope, canWrite }) {
+  const settingsPath = '/alerts/settings/' + scope;
+  const result = useResource(settingsPath, {}, 0, liveApi);
+  return <Resource result={result}>{data =>
+    <ThresholdWorkspace data={data} canWrite={canWrite} scope={scope} settingsPath={settingsPath} />
+  }</Resource>;
+}
+
 export default function AlertThresholds({ canWrite }) {
-  const result = useResource('/alerts/settings/web', {}, 0, liveApi);
-  return <Resource result={result}>{data => <ThresholdWorkspace data={data} canWrite={canWrite} />}</Resource>;
+  const [scope, setScope] = useState('web');
+  const [visited, setVisited] = useState(['web']);
+  return <div className="stack">
+    <div className="explorer-tabs" aria-label="منبع قواعد هشدار">
+      {Object.entries(scopes).map(([key, { label, Icon }]) =>
+        <button key={key} type="button" className="button" aria-pressed={scope === key} onClick={() => {
+          setScope(key);
+          setVisited(current => current.includes(key) ? current : [...current, key]);
+        }}>
+          <Icon size={16} aria-hidden="true" /> {label}
+        </button>)}
+    </div>
+    {visited.map(key => <div key={key} hidden={scope !== key}><ThresholdScope scope={key} canWrite={canWrite} /></div>)}
+  </div>;
 }
