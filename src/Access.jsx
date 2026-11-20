@@ -14,6 +14,7 @@ const sections = {
 const writable = new Set(['ingestion', 'detections', 'alerts', 'incidents', 'analytics', 'current-model', 'device-health', 'users', 'tasks', 'task-columns']);
 
 export function canAccess(user, section, write = false) {
+  if (section === 'alert-thresholds') section = 'alerts';
   if (section === 'systems' && !write) {
     return user.role === 'manager' || ['systems', 'users', 'device-health']
       .some(key => ['read', 'write'].includes(user.permissions[key]));

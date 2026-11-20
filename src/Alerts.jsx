@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { liveApi } from './api.js';
 import { Badge, Card, displayValue, number, Pagination, Resource, statuses, Table, useResource } from './ui.jsx';
 
-const domains = [['network', 'هشدار شبکه'], ['system', 'هشدار سیستم‌ها']];
+const domains = [['network', 'هشدار شبکه'], ['system', 'هشدار سیستم‌ها'], ['web', 'هشدار وب‌سرویس‌ها']];
 const states = ['open', 'acknowledged', 'resolved'];
 const severities = ['critical', 'high', 'medium', 'low'];
 const dateTime = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'short', timeStyle: 'short' });
 const day = new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 const collections = {
   log_events: 'رویداد خام', dataset_records: 'رکورد خام شبکه', standard_records: 'رکورد استاندارد شبکه',
+  'web-records': 'درخواست وب',
   ml_predictions: 'پیش‌بینی شبکه', agent_logs: 'لاگ خام سیستم', agent_logs_label: 'لاگ استاندارد و برچسب‌خورده',
 };
 

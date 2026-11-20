@@ -7,6 +7,7 @@ import {
 import '@fontsource-variable/vazirmatn';
 import Overview from './Overview.jsx';
 import Alerts from './Alerts.jsx';
+import AlertThresholds from './AlertThresholds.jsx';
 import AvatarUpload from './Avatar.jsx';
 import Tasks, { TaskColumns } from './Tasks.jsx';
 import Users, { canAccess, Login, roleLabels } from './Access.jsx';
@@ -20,7 +21,7 @@ import './style.css';
 
 const icons = {
   overview: LayoutDashboard, ingestion: ArrowDownToLine, events: Search, explorer: Database,
-  alerts: BellRing, analytics: Sparkles, 'current-model': Network, system: Settings,
+  alerts: BellRing, 'alert-thresholds': Settings, analytics: Sparkles, 'current-model': Network, system: Settings,
   systems: Server, 'device-health': Monitor, users: UsersRound, tasks: Kanban, 'task-columns': Columns3,
 };
 const descriptions = {
@@ -28,6 +29,7 @@ const descriptions = {
   ingestion: 'ثبت گروهی و بررسی آخرین لاگ‌های دریافتی',
   events: 'مرور و فیلتر رویدادهای عملیاتی',
   explorer: 'بررسی روزانهٔ داده‌های شبکه، سیستم‌ها و لاگ‌ها',
+  'alert-thresholds': 'تنظیم تعداد، پنجرهٔ زمانی، وقفه و شدت',
   alerts: 'پیگیری هشدارهای امنیتی و تغییر وضعیت آن‌ها',
   analytics: 'وضعیت آماده‌سازی داده و مدل‌های تشخیص',
   'current-model': 'ساختار، ویژگی‌ها و قرارداد ورودی مدل فعال',
@@ -194,6 +196,7 @@ function Workspace({ user, themeControl, setUser, endSession }) {
         {route === 'events' && <Events />}
         {route === 'explorer' && <Explorer />}
         {route === 'alerts' && <Alerts canWrite={write} />}
+        {route === 'alert-thresholds' && <AlertThresholds canWrite={write} />}
         {route === 'analytics' && <Analytics showCurrentModel={permitted('current-model')} canWrite={write} />}
         {route === 'current-model' && <CurrentModel canWrite={write} showAnalytics={permitted('analytics')} />}
         {route === 'system' && <System />}
