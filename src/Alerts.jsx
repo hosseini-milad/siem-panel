@@ -9,7 +9,7 @@ const dateTime = new Intl.DateTimeFormat('fa-IR', { dateStyle: 'short', timeStyl
 const day = new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 const collections = {
   log_events: 'رویداد خام', dataset_records: 'رکورد خام شبکه', standard_records: 'رکورد استاندارد شبکه',
-  'web-records': 'درخواست وب',
+  'web-records': 'درخواست وب', web_security_signals: 'سیگنال امنیتی', web_service_batches: 'دستهٔ جمع‌آوری',
   ml_predictions: 'پیش‌بینی شبکه', agent_logs: 'لاگ خام سیستم', agent_logs_label: 'لاگ استاندارد و برچسب‌خورده',
 };
 
@@ -64,6 +64,7 @@ function AlertDetails({ id, onClose, canWrite, onChange }) {
   return <Card title="جزئیات هشدار" action={<button type="button" className="button" onClick={onClose}>بستن</button>}>
     <Resource result={alert}>{data => <>
       <h3>{data.title}</h3>
+      {data.owasp_category && <Badge>{data.owasp_category} · OWASP 2025</Badge>}
       <p>{data.description}</p>
       <div className="actions">
         <Badge value={data.severity} /><Badge value={data.status} />
@@ -130,7 +131,8 @@ function AlertDomain({ domain, canWrite }) {
   const result = useResource('/alerts', { domain, status, limit: 10, offset }, revision, liveApi);
   const refresh = () => setRevision(value => value + 1);
   const columns = [
-    { key: 'title', label: 'عنوان', render: row => <strong>{row.title}</strong> },
+    { key: 'title', label: 'عنوان', render: row => <><strong>{row.title}</strong>
+      {row.owasp_category && <small className="row-detail" dir="ltr">OWASP {row.owasp_category}</small>}</> },
     { key: 'source', label: 'منبع', render: row => <bdi>{row.source}</bdi> },
     { key: 'severity', label: 'شدت', render: row => <Badge value={row.severity} /> },
     { key: 'status', label: 'وضعیت', render: row => <Badge value={row.status} /> },
