@@ -426,3 +426,70 @@ nav a.nav-child { margin-inline-start: 22px; }
 .overview-axis { margin-left: 36px; }
 
 .correlation-graph { display: block; width: min(100%, 620px); max-height: 300px; margin: 12px auto; }
+
+.threshold-workspace { display: grid; gap: 16px; }
+.threshold-overview { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 12%, var(--surface)), var(--surface) 74%); }
+.threshold-overview-heading { display: flex; align-items: center; gap: 13px; min-width: 0; }
+.threshold-overview-icon, .threshold-rule-icon { flex: none; display: grid; place-items: center; border: 1px solid color-mix(in srgb, currentColor 25%, var(--stroke)); }
+.threshold-overview-icon { width: 51px; height: 51px; border-radius: 14px; color: var(--purple); background: var(--active); }
+.threshold-overview h2 { font-size: 17px; }
+.threshold-overview p { color: var(--muted); font-size: 12px; margin-block-start: 3px; }
+.threshold-evaluate { white-space: nowrap; }
+.threshold-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+.threshold-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.threshold-filter-count { font-size: 11px; background: var(--surface-hover); color: var(--muted); padding: 1px 6px; border-radius: 5px; }
+.threshold-search { position: relative; display: flex; align-items: center; color: var(--muted); }
+.threshold-search > svg { position: absolute; inset-inline-start: 10px; pointer-events: none; }
+.threshold-search > input { width: min(100%, 238px); min-width: 0; padding-inline-start: 34px; font-size: 13px; }
+.threshold-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr)); align-items: start; gap: 13px; }
+.threshold-rule { --rule-tone: var(--purple); display: grid; grid-template-rows: auto auto auto auto; min-width: 0; }
+.threshold-rule[data-tone="blue"] { --rule-tone: var(--blue); }
+.threshold-rule[data-tone="green"] { --rule-tone: var(--green); }
+.threshold-rule[data-tone="amber"] { --rule-tone: var(--amber); }
+.threshold-rule[data-tone="red"] { --rule-tone: var(--red); }
+.threshold-rule-header { display: flex; align-items: center; gap: 10px; padding: 14px 14px 0; }
+.threshold-rule-icon { width: 40px; height: 40px; border-radius: 11px; color: var(--rule-tone);
+  background: color-mix(in srgb, var(--rule-tone) 9%, var(--surface)); }
+.threshold-rule-title { flex: 1; min-width: 0; }
+.threshold-rule-title h3 { font-size: 15px; margin: 1px 0 0; line-height: 1.4; }
+.threshold-code { font: 600 10px ui-monospace, monospace; color: var(--muted); }
+.threshold-rule-detail { color: var(--muted); font-size: 12px; padding: 9px 14px; min-height: 40px; }
+.threshold-switch { display: inline-grid; place-items: center; position: relative; }
+.threshold-switch input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.threshold-switch span { pointer-events: none; display: block; width: 37px; height: 21px; border-radius: 99px; border: 1px solid var(--stroke);
+  background: var(--bg); position: relative; }
+.threshold-switch span::before { content: ""; position: absolute; inset-block-start: 3px; inset-inline-start: 3px; width: 13px; height: 13px;
+  border-radius: 50%; background: var(--muted); }
+.threshold-switch input:checked + span { background: var(--accent); border-color: var(--accent); }
+.threshold-switch input:checked + span::before { inset-inline-start: 19px; background: white; }
+.threshold-switch input:focus-visible + span { outline: 2px solid var(--purple); outline-offset: 3px; }
+.threshold-switch input:disabled { cursor: default; }
+.threshold-rule-values { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 14px 12px; padding: 8px 0;
+  border: 1px solid var(--stroke); background: var(--bg); border-radius: 9px; }
+.threshold-rule-values > div { min-width: 0; padding-inline: 7px; }
+.threshold-rule-values > div + div { border-inline-start: 1px solid var(--stroke); }
+.threshold-rule-values dt, .threshold-rule-fields label > span { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 11px; }
+.threshold-rule-values dt > svg, .threshold-rule-fields label > span > svg { flex: none; }
+.threshold-rule-values dd { display: flex; align-items: baseline; gap: 4px; font-size: 16px; font-weight: 700; }
+.threshold-rule-values dd small { font-size: 10px; font-weight: 400; }
+.threshold-rule-footer { display: flex; justify-content: space-between; align-items: center; padding: 0 14px 13px; gap: 8px; }
+.threshold-expand { padding: 5px 8px; }
+.threshold-expand[aria-expanded="true"] { color: var(--purple); }
+.threshold-expand[aria-expanded="true"] > svg:last-child { rotate: 180deg; }
+.threshold-rule-fields { margin: 0; border: 0; border-block-start: 1px solid var(--stroke); padding: 13px 14px; min-width: 0; }
+.threshold-rule-fields:not([hidden]) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.threshold-rule-fields label { display: grid; gap: 4px; min-width: 0; }
+.threshold-rule-fields input, .threshold-rule-fields select { width: 100%; min-width: 0; font-size: 13px; }
+.threshold-rule-fields input[aria-invalid="true"] { border-color: var(--red); }
+.threshold-visually-hidden { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; white-space: nowrap; }
+.threshold-savebar { position: sticky; bottom: 10px; z-index: 1; display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; gap: 10px; padding: 11px 14px; box-shadow: 0 8px 22px var(--overlay); }
+.threshold-savebar > span, .threshold-savebar > div, .threshold-feedback { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.threshold-savebar > span { font-size: 12px; color: var(--muted); }
+.threshold-feedback { border: 1px solid var(--stroke); border-radius: 9px; background: var(--surface); }
+@media (max-width: 480px) {
+  .threshold-rule-values dt > svg { display: none; }
+  .threshold-overview { padding: 14px; }
+  .threshold-savebar[data-dirty="false"] { position: static; }
+}

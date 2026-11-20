@@ -1,69 +1,137 @@
 import { useState } from 'react';
+import {
+  Activity, Boxes, ChevronDown, CircleCheck, Clock3, Fingerprint, ListChecks, LockKeyhole,
+  Radio, RotateCcw, Save, ScanLine, Search, Shield, ShieldCheck, SlidersHorizontal, Timer, TriangleAlert, Workflow,
+} from 'lucide-react';
 import { liveApi } from './api.js';
-import { Card, displayValue, number, Resource, useResource } from './ui.jsx';
+import { Badge, displayValue, number, Resource, useResource } from './ui.jsx';
 
 const rules = [
-  ['access_denied', 'A01 · کنترل دسترسی', 'تکرار 403 علامت‌خورده به‌عنوان رد دسترسی'],
-  ['configuration', 'A02 · پیکربندی', 'نتیجهٔ بررسی سیاست پیکربندی'],
-  ['supply_chain', 'A03 · زنجیرهٔ تأمین', 'یافتهٔ CI/CD یا اسکن وابستگی'],
-  ['cryptography', 'A04 · رمزنگاری', 'یافتهٔ پایش TLS یا سیاست رمزنگاری'],
-  ['injection', 'A05 · تزریق', 'سیگنال مسدودسازی از WAF یا آشکارساز معتبر'],
-  ['business_design', 'A06 · منطق تجاری', 'نقض سیاست گردش‌کار که برنامه ثبت می‌کند'],
-  ['login_failure', 'A07 · احراز هویت', 'شمار 401 علامت‌خورده به‌عنوان خطای ورود'],
-  ['integrity', 'A08 · یکپارچگی', 'شکست بررسی امضا یا یکپارچگی داده'],
-  ['logging_health', 'A09 · سلامت ثبت رویداد', 'آستانه برای خطوط نامعتبر و پنجره برای توقف دریافت heartbeat'],
-  ['server_error', 'A10 · شرایط استثنایی', 'شمار پاسخ‌های 5xx از شمارنده‌های هر سرویس'],
-];
-const fields = [
-  ['threshold', 'حد آستانه', 1, 500],
-  ['window_minutes', 'پنجرهٔ شمارش (دقیقه)', 1, 60],
-  ['cooldown_minutes', 'وقفهٔ هشدار تکراری (دقیقه)', 1, 1440],
+  ['access_denied', 'A01', 'کنترل دسترسی', 'تکرار پاسخ 403 که به‌عنوان رد دسترسی ثبت شده است.', Shield, 'blue'],
+  ['configuration', 'A02', 'پیکربندی', 'یافتهٔ بررسی سیاست پیکربندی.', SlidersHorizontal, 'purple'],
+  ['supply_chain', 'A03', 'زنجیرهٔ تأمین', 'یافتهٔ CI/CD یا اسکن وابستگی.', Boxes, 'blue'],
+  ['cryptography', 'A04', 'رمزنگاری', 'یافتهٔ پایش TLS یا سیاست رمزنگاری.', LockKeyhole, 'green'],
+  ['injection', 'A05', 'تزریق', 'سیگنال مسدودسازی از WAF یا آشکارساز معتبر.', ScanLine, 'amber'],
+  ['business_design', 'A06', 'منطق تجاری', 'نقض سیاست گردش‌کار که برنامه ثبت می‌کند.', Workflow, 'purple'],
+  ['login_failure', 'A07', 'احراز هویت', 'شمار پاسخ 401 که به‌عنوان خطای ورود ثبت شده است.', Fingerprint, 'blue'],
+  ['integrity', 'A08', 'یکپارچگی', 'شکست بررسی امضا یا یکپارچگی داده.', ShieldCheck, 'green'],
+  ['logging_health', 'A09', 'سلامت ثبت رویداد', 'خطوط نامعتبر یا توقف دریافت heartbeat.', Radio, 'amber'],
+  ['server_error', 'A10', 'شرایط استثنایی', 'شمار پاسخ‌های 5xx از شمارنده‌های هر سرویس.', TriangleAlert, 'red'],
 ];
 
-function ThresholdForm({ data, canWrite, onSaved }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  async function save(event) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const body = Object.fromEntries(rules.filter(([key]) => data[key]).map(([key]) => [key, {
-      enabled: form.has(key + '-enabled'),
-      severity: form.get(key + '-severity'),
-      ...Object.fromEntries(fields.map(([field]) => [field, Number(form.get(key + '-' + field))])),
-    }]));
-    setError('');
-    setBusy(true);
-    try {
-      await liveApi('/alerts/settings/web', { method: 'PUT', body });
-      onSaved();
-    } catch (failure) {
-      setError(failure.status === 422 ? 'مقادیر آستانه را بررسی کنید.' : failure.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return <form className="stack" onSubmit={save}>
-    {rules.filter(([key]) => data[key]).map(([key, label, detail]) => <fieldset key={key} className="account-permissions" disabled={!canWrite || busy}>
-      <legend>{label}</legend>
-      <p>{detail}</p>
-      <label className="toggle"><input name={key + '-enabled'} type="checkbox" defaultChecked={data[key].enabled} /> فعال</label>
-      {fields.map(([field, caption, min, max]) => <label key={field}>{caption}
-        <input name={key + '-' + field} type="number" min={min} max={max} defaultValue={data[key][field]} required />
+const fields = [
+  ['threshold', 'حد آستانه', 1, 500, ListChecks, 'رخداد'],
+  ['window_minutes', 'پنجرهٔ شمارش', 1, 60, Clock3, 'دقیقه'],
+  ['cooldown_minutes', 'وقفهٔ تکرار', 1, 1440, Timer, 'دقیقه'],
+];
+const statuses = [['all', 'همه'], ['enabled', 'فعال'], ['disabled', 'غیرفعال']];
+const severities = ['low', 'medium', 'high', 'critical'];
+
+function ThresholdRule({ definition, rule, expanded, onExpand, onChange, locked, invalidField }) {
+  const [key, code, label, detail, Icon, tone] = definition;
+  const id = `threshold-${key}`;
+  return <article className="card threshold-rule" aria-labelledby={id} data-tone={tone}>
+    <header className="threshold-rule-header">
+      <span className="threshold-rule-icon"><Icon size={21} aria-hidden="true" /></span>
+      <div className="threshold-rule-title">
+        <bdi className="threshold-code">{code}</bdi>
+        <h3 id={id}>{label}</h3>
+      </div>
+      <label className="threshold-switch" title={rule.enabled ? 'قاعده فعال است' : 'قاعده غیرفعال است'}>
+        <input type="checkbox" role="switch" aria-label={`فعال بودن قاعدهٔ ${label}`} checked={rule.enabled}
+          disabled={locked} onChange={event => onChange('enabled', event.target.checked)} />
+        <span aria-hidden="true" />
+      </label>
+    </header>
+    <p className="threshold-rule-detail">{detail}</p>
+    <dl className="threshold-rule-values">
+      {fields.map(([field, caption, , , Metric, unit]) => <div key={field}>
+        <dt><Metric size={13} aria-hidden="true" />{caption}</dt>
+        <dd>{rule[field] === '' ? '—' : number.format(rule[field])}<small>{unit}</small></dd>
+      </div>)}
+    </dl>
+    <footer className="threshold-rule-footer">
+      <Badge value={rule.severity} />
+      <button type="button" className="button threshold-expand" aria-expanded={expanded}
+        aria-controls={id + '-fields'} onClick={onExpand}>
+        <SlidersHorizontal size={14} aria-hidden="true" /> تنظیمات
+        <ChevronDown size={14} aria-hidden="true" />
+      </button>
+    </footer>
+    <fieldset className="threshold-rule-fields" id={id + '-fields'} hidden={!expanded} disabled={locked}>
+      <legend className="threshold-visually-hidden">تنظیمات {label}</legend>
+      {fields.map(([field, caption, min, max, Metric, unit]) => <label key={field}>
+        <span><Metric size={14} aria-hidden="true" />{caption} <small>({unit})</small></span>
+        <input type="number" min={min} max={max} dir="ltr" value={rule[field]}
+          aria-invalid={invalidField === field} onChange={event => onChange(field, event.target.value === '' ? '' : Number(event.target.value))} />
       </label>)}
-      <label>شدت<select name={key + '-severity'} defaultValue={data[key].severity}>
-        {['low', 'medium', 'high', 'critical'].map(severity =>
-          <option key={severity} value={severity}>{displayValue(severity)}</option>)}
-      </select></label>
-    </fieldset>)}
-    {error && <p role="alert" className="notice error">{error}</p>}
-    {canWrite && <button className="primary" disabled={busy}>ذخیرهٔ آستانه‌ها</button>}
-  </form>;
+      <label>
+        <span><TriangleAlert size={14} aria-hidden="true" />شدت هشدار</span>
+        <select value={rule.severity} onChange={event => onChange('severity', event.target.value)}>
+          {severities.map(severity => <option key={severity} value={severity}>{displayValue(severity)}</option>)}
+        </select>
+      </label>
+    </fieldset>
+  </article>;
 }
 
-export default function AlertThresholds({ canWrite }) {
-  const [revision, setRevision] = useState(0);
+function ThresholdWorkspace({ data, canWrite }) {
+  const [saved, setSaved] = useState(data);
+  const [draft, setDraft] = useState(data);
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [expanded, setExpanded] = useState(null);
+  const [invalid, setInvalid] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState(null);
   const [evaluation, setEvaluation] = useState(null);
   const [evaluating, setEvaluating] = useState(false);
+
+  const available = rules.filter(([key]) => draft[key]);
+  const active = available.filter(([key]) => draft[key].enabled).length;
+  const totals = { all: available.length, enabled: active, disabled: available.length - active };
+  const changed = available.filter(([key]) => JSON.stringify(draft[key]) !== JSON.stringify(saved[key])).length;
+  const query = search.trim().toLowerCase();
+  const visible = available.filter(([key, code, label]) =>
+    (filter === 'all' || draft[key].enabled === (filter === 'enabled')) &&
+    [key, code, label].some(value => value.toLowerCase().includes(query)),
+  );
+
+  function change(key, field, value) {
+    setDraft(current => ({ ...current, [key]: { ...current[key], [field]: value } }));
+    setNotice(null);
+    if (invalid?.key === key && invalid.field === field) setInvalid(null);
+  }
+
+  async function save(event) {
+    event.preventDefault();
+    setNotice(null);
+    for (const [key, , label] of available) {
+      const invalidInput = fields.find(([field, , min, max]) =>
+        !Number.isInteger(draft[key][field]) || draft[key][field] < min || draft[key][field] > max);
+      if (invalidInput) {
+        const [field, caption, min, max] = invalidInput;
+        setFilter('all');
+        setSearch('');
+        setExpanded(key);
+        setInvalid({ key, field });
+        setNotice({ error: `«${caption}» در قاعدهٔ ${label} باید عددی صحیح بین ${number.format(min)} و ${number.format(max)} باشد.` });
+        return;
+      }
+    }
+    setSaving(true);
+    try {
+      const updated = await liveApi('/alerts/settings/web', { method: 'PUT', body: draft });
+      setSaved(updated);
+      setDraft(updated);
+      setNotice({ message: 'آستانه‌ها ذخیره شدند.' });
+    } catch (failure) {
+      setNotice({ error: failure.status === 422 ? 'مقادیر آستانه را بررسی کنید.' : failure.message });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function evaluate() {
     setEvaluating(true);
     setEvaluation(null);
@@ -75,19 +143,74 @@ export default function AlertThresholds({ canWrite }) {
       setEvaluating(false);
     }
   }
-  const result = useResource('/alerts/settings/web', {}, revision, liveApi);
-  return <Card title="آستانه‌های هشدار وب‌سرویس"
-    detail="قواعد OWASP Top 10:2025 فقط پس از دریافت سیگنال متناظر هشدار می‌دهند."
-    action={canWrite && <button type="button" className="button" disabled={evaluating} onClick={evaluate}>
-      {evaluating ? 'در حال ارزیابی…' : 'ارزیابی داده‌های جاری'}
-    </button>}>
-    {evaluation?.error && <p className="notice error" role="alert">{evaluation.error}</p>}
-    {evaluation?.items && <p className="notice" role="status">
+
+  function reset() {
+    setDraft(saved);
+    setInvalid(null);
+    setNotice(null);
+  }
+
+  return <form className="threshold-workspace" onSubmit={save} noValidate>
+    <section className="card threshold-overview" aria-labelledby="threshold-overview-title">
+      <div className="threshold-overview-heading">
+        <span className="threshold-overview-icon"><ShieldCheck size={27} aria-hidden="true" /></span>
+        <div>
+          <h2 id="threshold-overview-title">قواعد هشدار وب‌سرویس</h2>
+          <p>مدیریت قواعد OWASP Top 10:2025 و ارزیابی تنظیمات ذخیره‌شده روی داده‌های جاری</p>
+        </div>
+      </div>
+      {canWrite && <button type="button" className="button threshold-evaluate" disabled={evaluating || saving} onClick={evaluate}>
+        <Activity size={17} aria-hidden="true" />{evaluating ? 'در حال ارزیابی…' : 'ارزیابی داده‌های جاری'}
+      </button>}
+    </section>
+    {evaluation?.error && <p className="notice error threshold-feedback" role="alert"><TriangleAlert size={17} />{evaluation.error}</p>}
+    {evaluation?.items && <p className="notice threshold-feedback" role="status"><CircleCheck size={17} aria-hidden="true" />
       {number.format(evaluation.items.length)} سرویس ارزیابی شد و {number.format(evaluation.alerts_created)} هشدار جدید ثبت شد.
       {evaluation.items.some(item => item.request_rules_skipped) && ' بعضی قواعد درخواست به دلیل حجم زیاد اجرا نشدند.'}
     </p>}
-    {revision > 0 && <p className="notice" role="status">آستانه‌ها ذخیره شدند.</p>}
-    <Resource result={result}>{data => <ThresholdForm key={revision} data={data} canWrite={canWrite}
-      onSaved={() => setRevision(value => value + 1)} />}</Resource>
-  </Card>;
+    <div className="threshold-toolbar">
+      <div className="threshold-filters explorer-tabs" aria-label="فیلتر وضعیت قواعد">
+        {statuses.map(([status, label]) => <button key={status} type="button" className="button"
+          aria-pressed={filter === status} onClick={() => setFilter(status)}>{label}
+          <span className="threshold-filter-count">{number.format(totals[status])}</span>
+        </button>)}
+      </div>
+      <label className="threshold-search"><Search size={17} aria-hidden="true" />
+        <input type="search" aria-label="جست‌وجوی قاعده" placeholder="نام یا کد قاعده" value={search}
+          onChange={event => setSearch(event.target.value)} />
+      </label>
+    </div>
+    <div className="threshold-grid">
+      {visible.map(definition => {
+        const [key] = definition;
+        return <ThresholdRule key={key} definition={definition} rule={draft[key]} expanded={expanded === key}
+          locked={!canWrite || saving} invalidField={invalid?.key === key ? invalid.field : undefined}
+          onExpand={() => setExpanded(current => current === key ? null : key)}
+          onChange={(field, value) => change(key, field, value)} />;
+      })}
+    </div>
+    {!visible.length && <p className="card notice" role="status">قاعده‌ای با این فیلتر پیدا نشد.</p>}
+    {notice && <p className={`notice threshold-feedback${notice.error ? ' error' : ''}`} role={notice.error ? 'alert' : 'status'}>
+      {notice.error ? <TriangleAlert size={17} aria-hidden="true" /> : <CircleCheck size={17} aria-hidden="true" />}
+      {notice.error ?? notice.message}
+    </p>}
+    {canWrite && <footer className="card threshold-savebar" data-dirty={changed > 0}>
+      <span><ListChecks size={17} aria-hidden="true" />
+        {changed ? `${number.format(changed)} قاعده با تغییر ذخیره‌نشده` : 'همهٔ تغییرات ذخیره شده‌اند'}
+      </span>
+      <div>
+        <button type="button" className="button" disabled={!changed || saving} onClick={reset}>
+          <RotateCcw size={15} aria-hidden="true" /> بازگردانی
+        </button>
+        <button type="submit" className="primary" disabled={!changed || saving}>
+          <Save size={15} aria-hidden="true" /> {saving ? 'در حال ذخیره…' : 'ذخیرهٔ آستانه‌ها'}
+        </button>
+      </div>
+    </footer>}
+  </form>;
+}
+
+export default function AlertThresholds({ canWrite }) {
+  const result = useResource('/alerts/settings/web', {}, 0, liveApi);
+  return <Resource result={result}>{data => <ThresholdWorkspace data={data} canWrite={canWrite} />}</Resource>;
 }
