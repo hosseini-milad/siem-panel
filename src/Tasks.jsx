@@ -257,16 +257,18 @@ function OpenTask({ id, columns, candidates, suggestions, onUpdate }) {
     onUpdate={item => { setUpdated(item); onUpdate(); }} />}</Resource>;
 }
 
-function ColumnTasks({ column, renderCard, onExpire }) {
+function ColumnTasks({ column, renderCard, onExpire, columns, move }) {
   const [state, setState] = useState({ items: [], cursor: null, total: 0 });
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const pending = useRef(false);
+  const paused = useRef(false);
+  const initialized = useRef(false);
   const mounted = useRef(false);
   const generation = useRef(0);
 
-  async function load(before) {
-    if (pending.current) return;
+  async function load(before, preserve) {
+    if (pending.current || paused.current) return;
     const request = generation.current;
     pending.current = true;
     setBusy(true);
@@ -275,8 +277,11 @@ function ColumnTasks({ column, renderCard, onExpire }) {
       const query = { column_id: column.id, limit: 5, before };
       const data = await liveApi('/tasks', { query });
       if (!mounted.current || request !== generation.current) return;
+      initialized.current = true;
       setState(previous => ({
-        items: before ? [...new Map([...previous.items, ...data.items].map(item => [item.id, item])).values()] : data.items,
+        items: before || preserve
+          ? [...new Map([...previous.items, ...data.items].map(item => [item.id, item])).values()]
+          : data.items,
         cursor: data.next_cursor, total: data.total ?? previous.total,
       }));
     } catch (failure) {
@@ -293,9 +298,34 @@ function ColumnTasks({ column, renderCard, onExpire }) {
     generation.current += 1;
     mounted.current = true;
     pending.current = false;
+    const controller = {
+      pause() {
+        // Discard any page that might already include the server-side move.
+        generation.current += 1;
+        pending.current = false;
+        paused.current = true;
+        setBusy(false);
+      },
+      finish(task, incoming) {
+        paused.current = false;
+        if (task) {
+          setState(previous => ({
+            ...previous,
+            items: incoming ? [task, ...previous.items] : previous.items.filter(item => item.id !== task.id),
+            total: Math.max(0, previous.total + (incoming ? 1 : -1)),
+          }));
+        }
+        if (!initialized.current) load(null, incoming && Boolean(task));
+      },
+    };
+    const registry = columns.current;
+    registry.set(column.id, controller);
     load(null);
-    return () => { mounted.current = false; };
-  }, [column.id]);
+    return () => {
+      mounted.current = false;
+      registry.delete(column.id);
+    };
+  }, [column.id, columns]);
 
   useEffect(() => {
     const deadlines = state.items.filter(task => task.closed_at).map(task => ({
@@ -314,20 +344,26 @@ function ColumnTasks({ column, renderCard, onExpire }) {
     return () => window.clearTimeout(timer);
   }, [state.items, onExpire]);
 
+  const incoming = move?.column === column.id;
+  const outgoing = move?.task.column_id === column.id;
+  const items = incoming ? [{ ...move.task, column_id: column.id }, ...state.items]
+    : outgoing ? state.items.filter(task => task.id !== move.task.id) : state.items;
+  const total = Math.max(0, state.total + Number(incoming) - Number(outgoing));
+
   return <>
     <header><h2>{column.id === 'done' ? <Check size={17} /> : <Circle size={14} />}{column.title}</h2>
-      <span>{number.format(state.total)}</span></header>
+      <span>{number.format(total)}</span></header>
     <div className="kanban-scroll" tabIndex={0} aria-label={`تسک‌های ${column.title}`}
       onScroll={event => {
         const { scrollHeight, scrollTop, clientHeight } = event.currentTarget;
         if (state.cursor && !error && scrollHeight - scrollTop - clientHeight < 64) load(state.cursor);
       }}>
-      {state.items.map(renderCard)}
+      {items.map(renderCard)}
       {busy && <p className="kanban-empty" role="status">در حال بارگذاری…</p>}
       {error && <p className="notice error" role="alert">{error}</p>}
-      {!busy && !error && state.items.length === 0 && <p className="kanban-empty">تسکی ندارد</p>}
+      {!busy && !error && items.length === 0 && <p className="kanban-empty">تسکی ندارد</p>}
       {!busy && (state.cursor || error) && <button className="button" type="button"
-        onClick={() => load(state.cursor)}>{error ? 'تلاش دوباره' : 'تسک‌های بیشتر'}</button>}
+        disabled={incoming || outgoing} onClick={() => load(state.cursor)}>{error ? 'تلاش دوباره' : 'تسک‌های بیشتر'}</button>}
     </div>
   </>;
 }
@@ -340,7 +376,8 @@ export default function Tasks({ user }) {
   const dragging = useRef(null);
   const [dragSource, setDragSource] = useState(null);
   const [target, setTarget] = useState(null);
-  const [moving, setMoving] = useState(false);
+  const columns = useRef(new Map());
+  const [move, setMove] = useState(null);
   const [moveError, setMoveError] = useState('');
   const refresh = () => setRevision(value => value + 1);
   const close = () => setSelected(null);
@@ -354,21 +391,28 @@ export default function Tasks({ user }) {
 
   async function drop(event, column) {
     const task = dragging.current;
-    if (!task || column === task.column_id || !task.move_columns.includes(column)) return;
+    if (move || !task || column === task.column_id || !task.move_columns.includes(column)) return;
     event.preventDefault();
     endDrag();
     if (column === 'done' && !window.confirm('تسک خاتمه یابد؟')) return;
     setMoveError('');
-    setMoving(true);
+    const source = columns.current.get(task.column_id);
+    const destination = columns.current.get(column);
+    source?.pause();
+    destination?.pause();
+    setMove({ task, column });
+    let saved;
     try {
-      await liveApi('/tasks/' + task.id, {
+      const updated = await liveApi('/tasks/' + task.id, {
         method: 'PATCH', body: { column_id: column, revision: task.revision },
       });
+      saved = { ...task, ...updated };
     } catch (error) {
       setMoveError(error.message);
     } finally {
-      setMoving(false);
-      refresh();
+      source?.finish(saved, false);
+      destination?.finish(saved, true);
+      setMove(null);
     }
   }
 
@@ -376,11 +420,11 @@ export default function Tasks({ user }) {
     {moveError && <p className="notice error" role="alert">{moveError}</p>}
     <Resource result={page}>{data => <>
       <div className="task-toolbar">
-        {data.can_create && <button className="button primary" onClick={() => {
+        {data.can_create && <button className="button primary" disabled={Boolean(move)} onClick={() => {
           setOpenPage(data);
           setSelected('new');
         }}><Plus size={17} />تسک جدید</button>}
-        <button className="button" onClick={refresh}><RefreshCw size={16} />تازه‌سازی تابلو</button>
+        <button className="button" disabled={Boolean(move)} onClick={refresh}><RefreshCw size={16} />تازه‌سازی تابلو</button>
       </div>
       <div className="kanban" role="region" aria-label="تابلوی کانبان" tabIndex={0}>
         {data.columns.map(column => {
@@ -397,8 +441,8 @@ export default function Tasks({ user }) {
               if (!event.currentTarget.contains(event.relatedTarget)) setTarget(current => current === column.id ? null : current);
             }}
             onDrop={event => drop(event, column.id)}>
-            <ColumnTasks key={revision} column={column} onExpire={expire} renderCard={task =>
-              <TaskCard key={task.id} task={task} user={user} draggable={task.can_move && !moving}
+            <ColumnTasks key={revision} column={column} columns={columns} move={move} onExpire={expire} renderCard={task =>
+              <TaskCard key={task.id} task={task} user={user} draggable={task.can_move && !move}
                 onDragStart={event => {
                   dragging.current = task;
                   setDragSource(task.column_id);
@@ -406,7 +450,7 @@ export default function Tasks({ user }) {
                   event.dataTransfer.setData('text/plain', task.id);
                 }}
                 onDragEnd={endDrag} onOpen={() => {
-                  if (dragSource || moving) return;
+                  if (dragSource || move) return;
                   setOpenPage(data);
                   setSelected(task);
                 }} />} />
