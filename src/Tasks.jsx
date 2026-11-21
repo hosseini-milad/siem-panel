@@ -379,30 +379,9 @@ export default function Tasks({ user }) {
   const columns = useRef(new Map());
   const [move, setMove] = useState(null);
   const [moveError, setMoveError] = useState('');
-  const scrollbarTimers = useRef(new Map());
   const refresh = () => setRevision(value => value + 1);
   const close = () => setSelected(null);
   const expire = expired => setSelected(current => expired.has(current?.id) ? null : current);
-
-  useEffect(() => {
-    const timers = scrollbarTimers.current;
-    return () => {
-      for (const timer of timers.values()) window.clearTimeout(timer);
-      timers.clear();
-    };
-  }, []);
-
-  function showScrollbar(event) {
-    const scroller = event.target;
-    if (!scroller.matches('.kanban, .kanban-scroll')) return;
-    const timers = scrollbarTimers.current;
-    window.clearTimeout(timers.get(scroller));
-    scroller.dataset.scrolling = '';
-    timers.set(scroller, window.setTimeout(() => {
-      delete scroller.dataset.scrolling;
-      timers.delete(scroller);
-    }, 700));
-  }
 
   function endDrag() {
     dragging.current = null;
@@ -447,7 +426,7 @@ export default function Tasks({ user }) {
         }}><Plus size={17} />تسک جدید</button>}
         <button className="button" disabled={Boolean(move)} onClick={refresh}><RefreshCw size={16} />تازه‌سازی تابلو</button>
       </div>
-      <div className="kanban" role="region" aria-label="تابلوی کانبان" tabIndex={0} onScrollCapture={showScrollbar}>
+      <div className="kanban" role="region" aria-label="تابلوی کانبان" tabIndex={0}>
         {data.columns.map(column => {
           return <section className={`kanban-column ${target === column.id ? 'is-drop-target' : ''}`}
             key={column.id} aria-label={column.title}

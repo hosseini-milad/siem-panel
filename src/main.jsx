@@ -51,6 +51,31 @@ function initialTheme() {
 }
 
 function App() {
+  useEffect(() => {
+    const timers = new Map();
+
+    function showScrollbar(event) {
+      const scroller = event.target === document ? document.scrollingElement : event.target;
+      if (!scroller?.matches?.('html, .sidebar, .kanban, .kanban-scroll')) return;
+
+      window.clearTimeout(timers.get(scroller));
+      scroller.dataset.scrolling = '';
+      timers.set(scroller, window.setTimeout(() => {
+        delete scroller.dataset.scrolling;
+        timers.delete(scroller);
+      }, 700));
+    }
+
+    document.addEventListener('scroll', showScrollbar, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener('scroll', showScrollbar, true);
+      for (const [scroller, timer] of timers) {
+        window.clearTimeout(timer);
+        delete scroller.dataset.scrolling;
+      }
+    };
+  }, []);
+
   const [theme, setTheme] = useState(initialTheme);
   const [session, setSession] = useState({ loading: true });
   const [retry, setRetry] = useState(0);
